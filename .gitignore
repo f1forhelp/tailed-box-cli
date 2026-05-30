@@ -4,6 +4,7 @@
 # Go test and coverage artifacts
 *.test
 coverage.out
+/.tmp
 
 # OS/editor noise
 .DS_Store

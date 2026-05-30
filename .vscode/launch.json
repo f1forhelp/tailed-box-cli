@@ -1,0 +1,65 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "tailedbox: version",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/tailedbox",
+      "args": ["version"]
+    },
+    {
+      "name": "tailedbox: status",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/tailedbox",
+      "args": ["status"],
+      "env": {
+        "TAILEDBOX_CONFIG": "${workspaceFolder}/.tmp/vscode/config.json",
+        "TAILEDBOX_STATE_DIR": "${workspaceFolder}/.tmp/vscode/state",
+        "TAILEDBOX_LOG_DIR": "${workspaceFolder}/.tmp/vscode/logs"
+      }
+    },
+    {
+      "name": "tailedbox: init master",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/tailedbox",
+      "args": ["init", "--role", "master"],
+      "env": {
+        "TAILEDBOX_CONFIG": "${workspaceFolder}/.tmp/vscode/config.json",
+        "TAILEDBOX_STATE_DIR": "${workspaceFolder}/.tmp/vscode/state",
+        "TAILEDBOX_LOG_DIR": "${workspaceFolder}/.tmp/vscode/logs"
+      }
+    },
+    {
+      "name": "tailedbox: master status",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/tailedbox",
+      "args": ["master", "status"],
+      "env": {
+        "TAILEDBOX_CONFIG": "${workspaceFolder}/.tmp/vscode/config.json",
+        "TAILEDBOX_STATE_DIR": "${workspaceFolder}/.tmp/vscode/state",
+        "TAILEDBOX_LOG_DIR": "${workspaceFolder}/.tmp/vscode/logs"
+      }
+    },
+    {
+      "name": "tailedbox: worker status",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/tailedbox",
+      "args": ["worker", "status"],
+      "env": {
+        "TAILEDBOX_CONFIG": "${workspaceFolder}/.tmp/vscode/config.json",
+        "TAILEDBOX_STATE_DIR": "${workspaceFolder}/.tmp/vscode/state",
+        "TAILEDBOX_LOG_DIR": "${workspaceFolder}/.tmp/vscode/logs"
+      }
+    }
+  ]
+}
