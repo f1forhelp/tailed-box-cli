@@ -1,0 +1,9 @@
+# Local build artifacts
+/tailedbox
+
+# Go test and coverage artifacts
+*.test
+coverage.out
+
+# OS/editor noise
+.DS_Store
