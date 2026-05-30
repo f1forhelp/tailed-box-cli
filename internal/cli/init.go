@@ -40,14 +40,17 @@ func runInit(ctx context.Context, a *app, args []string) error {
 
 	a.logger.InfoContext(ctx, "node initialized", "role", a.cfg.Node.Role, "node_id", a.cfg.Node.ID, "changed", changed)
 	if changed {
-		fmt.Fprintf(a.stdout, "Initialized tailedbox node as %s.\n", a.cfg.Node.Role)
+		fmt.Fprintln(a.stdout, a.theme.SuccessLine(fmt.Sprintf("Initialized tailedbox node as %s.", a.cfg.Node.Role)))
 	} else {
-		fmt.Fprintf(a.stdout, "Tailedbox node is already initialized as %s.\n", a.cfg.Node.Role)
+		fmt.Fprintln(a.stdout, a.theme.NoteLine(fmt.Sprintf("Tailedbox node is already initialized as %s.", a.cfg.Node.Role)))
 	}
-	fmt.Fprintf(a.stdout, "  Node ID:     %s\n", a.cfg.Node.ID)
-	fmt.Fprintf(a.stdout, "  Config file: %s\n", a.cfg.Paths.ConfigFile)
-	fmt.Fprintf(a.stdout, "  State dir:   %s\n", a.cfg.Paths.StateDir)
-	fmt.Fprintf(a.stdout, "  Log file:    %s\n", a.cfg.Paths.LogFile)
+	fmt.Fprintln(a.stdout)
+	writeKeyValues(a.stdout, a.theme, "Local files", [][2]string{
+		{"Node ID", a.cfg.Node.ID},
+		{"Config file", a.cfg.Paths.ConfigFile},
+		{"State dir", a.cfg.Paths.StateDir},
+		{"Log file", a.cfg.Paths.LogFile},
+	})
 	return nil
 }
 

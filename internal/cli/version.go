@@ -15,10 +15,12 @@ func versionCommand() *command {
 			if a.jsonOutput {
 				return writeJSON(a.stdout, a.build)
 			}
-			fmt.Fprintf(a.stdout, "tailedbox %s\n", a.build.Version)
-			fmt.Fprintf(a.stdout, "  commit: %s\n", a.build.Commit)
-			fmt.Fprintf(a.stdout, "  built:  %s\n", a.build.Date)
-			fmt.Fprintf(a.stdout, "  go:     %s\n", a.build.GoVersion)
+			fmt.Fprintf(a.stdout, "%s %s\n\n", a.theme.Title("tailedbox"), a.theme.Accent(a.build.Version))
+			writeKeyValues(a.stdout, a.theme, "Build", [][2]string{
+				{"Commit", a.build.Commit},
+				{"Built", a.build.Date},
+				{"Go", a.build.GoVersion},
+			})
 			return nil
 		},
 	}

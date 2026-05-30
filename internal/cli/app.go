@@ -17,6 +17,7 @@ type app struct {
 	stdout io.Writer
 	stderr io.Writer
 	build  buildinfo.Info
+	theme  theme
 
 	configPath string
 	stateDir   string
@@ -29,7 +30,7 @@ type app struct {
 }
 
 func Execute(ctx context.Context, stdout, stderr io.Writer, args []string, build buildinfo.Info) error {
-	a := &app{stdout: stdout, stderr: stderr, build: build}
+	a := &app{stdout: stdout, stderr: stderr, build: build, theme: newTheme(stdout)}
 	return a.run(ctx, args)
 }
 
@@ -41,17 +42,17 @@ func (a *app) run(ctx context.Context, args []string) error {
 
 	if len(parsed) > 0 && parsed[0] == "help" {
 		target, _ := rootCommand().find(parsed[1:])
-		target.printHelp(a.stdout)
+		target.printHelp(a.stdout, a.theme)
 		return nil
 	}
 
 	cmd, cmdArgs := rootCommand().find(parsed)
 	if help {
-		cmd.printHelp(a.stdout)
+		cmd.printHelp(a.stdout, a.theme)
 		return nil
 	}
 	if cmd.run == nil {
-		cmd.printHelp(a.stdout)
+		cmd.printHelp(a.stdout, a.theme)
 		return nil
 	}
 

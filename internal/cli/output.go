@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"github.com/tailedbox/tailedbox/internal/status"
 )
 
@@ -16,76 +17,107 @@ func writeJSON(w io.Writer, value any) error {
 	return encoder.Encode(value)
 }
 
-func writeKeyValues(w io.Writer, title string, values [][2]string) {
-	fmt.Fprintln(w, title)
+func writeKeyValues(w io.Writer, t theme, title string, values [][2]string) {
+	fmt.Fprintln(w, t.Section(title))
+	width := 0
 	for _, value := range values {
-		fmt.Fprintf(w, "  %-32s %s\n", value[0]+":", value[1])
+		label := value[0] + ":"
+		if labelWidth := t.Width(label); labelWidth > width {
+			width = labelWidth
+		}
+	}
+	for _, value := range values {
+		label := padRight(t, value[0]+":", width)
+		fmt.Fprintf(w, "  %s  %s\n", t.Label(label), value[1])
 	}
 }
 
-func writeMasterStatus(w io.Writer, value status.MasterStatus) {
-	fmt.Fprintln(w, "Master Status")
+func writeMasterStatus(w io.Writer, t theme, value status.MasterStatus) {
+	fmt.Fprintln(w, t.Title("Master Status"))
 	fmt.Fprintln(w)
-	writeKeyValues(w, "Current node", [][2]string{
+	writeKeyValues(w, t, "Current node", [][2]string{
 		{"Node ID", value.Current.NodeID},
 		{"Role", value.Current.Role},
 		{"Reachability", value.Current.Reachability},
-		{"Mesh", string(value.Current.MeshState)},
+		{"Mesh", t.Mesh(string(value.Current.MeshState))},
 		{"Last seen", value.Current.LastSeen.Format("2006-01-02 15:04:05 MST")},
-		{"Health", string(value.Current.Health)},
+		{"Health", t.Health(string(value.Current.Health))},
 	})
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Known cluster nodes")
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "NODE ID\tROLE\tREACHABILITY\tMESH\tLAST SEEN\tHEALTH")
+	fmt.Fprintln(w, t.Section("Known cluster nodes"))
+	rows := make([][]string, 0, len(value.KnownNodes))
 	for _, node := range value.KnownNodes {
-		fmt.Fprintf(
-			tw,
-			"%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			node.NodeID,
 			node.Role,
 			node.Reachability,
-			node.MeshState,
+			t.Mesh(string(node.MeshState)),
 			node.LastSeen.Format("2006-01-02 15:04:05 MST"),
-			node.Health,
-		)
+			t.Health(string(node.Health)),
+		})
 	}
-	_ = tw.Flush()
+	fmt.Fprintln(w, renderTable(t, []string{"NODE ID", "ROLE", "REACHABILITY", "MESH", "LAST SEEN", "HEALTH"}, rows))
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "Summary: %d master(s), %d worker(s), %d healthy, %d degraded\n", value.Summary.Masters, value.Summary.Workers, value.Summary.Healthy, value.Summary.Degraded)
+	fmt.Fprintf(
+		w,
+		"%s %d master(s), %d worker(s), %s healthy, %s degraded\n",
+		t.Section("Summary:"),
+		value.Summary.Masters,
+		value.Summary.Workers,
+		t.Success(fmt.Sprint(value.Summary.Healthy)),
+		t.Warning(fmt.Sprint(value.Summary.Degraded)),
+	)
 }
 
-func writeWorkerStatus(w io.Writer, value status.WorkerStatus) {
-	writeKeyValues(w, "Worker Status", [][2]string{
+func writeWorkerStatus(w io.Writer, t theme, value status.WorkerStatus) {
+	fmt.Fprintln(w, t.Title("Worker Status"))
+	fmt.Fprintln(w)
+	writeKeyValues(w, t, "Local node", [][2]string{
 		{"Node ID", value.NodeID},
 		{"Role", value.Role},
-		{"Initialized", boolString(value.Initialized)},
-		{"Joined to master cluster", boolString(value.JoinedToMasterCluster)},
-		{"Connected to master cluster", boolString(value.ConnectedToMasterCluster)},
-		{"Authenticated", boolString(value.Authenticated)},
-		{"Mesh reachable", boolString(value.MeshReachable)},
-		{"Mesh", string(value.MeshState)},
-		{"Health", string(value.Health)},
+		{"Initialized", t.Bool(value.Initialized)},
+		{"Joined to master cluster", t.Bool(value.JoinedToMasterCluster)},
+		{"Connected to master cluster", t.Bool(value.ConnectedToMasterCluster)},
+		{"Authenticated", t.Bool(value.Authenticated)},
+		{"Mesh reachable", t.Bool(value.MeshReachable)},
+		{"Mesh", t.Mesh(string(value.MeshState))},
+		{"Health", t.Health(string(value.Health))},
 	})
 }
 
-func writeLocalStatus(w io.Writer, value status.LocalStatus) {
-	writeKeyValues(w, "Tailedbox Status", [][2]string{
+func writeLocalStatus(w io.Writer, t theme, value status.LocalStatus) {
+	fmt.Fprintln(w, t.Title("Tailedbox Status"))
+	fmt.Fprintln(w)
+	writeKeyValues(w, t, "Local node", [][2]string{
 		{"Node ID", value.NodeID},
 		{"Role", value.Role},
-		{"Initialized", boolString(value.Initialized)},
+		{"Initialized", t.Bool(value.Initialized)},
 		{"Config file", value.ConfigFile},
 		{"State directory", value.StateDir},
 		{"Log file", value.LogFile},
-		{"Health", string(value.Health)},
+		{"Health", t.Health(string(value.Health))},
 	})
 }
 
-func boolString(value bool) string {
-	if value {
-		return "yes"
-	}
-	return "no"
+func renderTable(t theme, headers []string, rows [][]string) string {
+	return table.New().
+		Border(lipgloss.ASCIIBorder()).
+		BorderStyle(t.TableBorder()).
+		BorderTop(true).
+		BorderBottom(true).
+		BorderLeft(true).
+		BorderRight(true).
+		BorderHeader(true).
+		BorderColumn(true).
+		Headers(headers...).
+		Rows(rows...).
+		StyleFunc(func(row, _ int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return t.TableHeader().Padding(0, 1)
+			}
+			return t.TableCell().Padding(0, 1)
+		}).
+		Render()
 }
 
 func plannedMessage(area string) string {

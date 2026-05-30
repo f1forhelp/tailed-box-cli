@@ -37,7 +37,7 @@ func workerCommand() *command {
 				if a.jsonOutput {
 					return writeJSON(a.stdout, value)
 				}
-				writeWorkerStatus(a.stdout, value)
+				writeWorkerStatus(a.stdout, a.theme, value)
 				return nil
 			},
 		},

@@ -106,6 +106,19 @@ func TestHelpOutput(t *testing.T) {
 	}
 }
 
+func TestNoArgsShowsRootHelp(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, nil, buildinfo.Info{}); err != nil {
+		t.Fatalf("no-args help failed: %v", err)
+	}
+	output := stdout.String()
+	for _, want := range []string{"tailedbox", "Usage", "Core", "Future Surfaces"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("no-args help missing %q:\n%s", want, output)
+		}
+	}
+}
+
 func testPaths(t *testing.T) []string {
 	t.Helper()
 	dir := t.TempDir()

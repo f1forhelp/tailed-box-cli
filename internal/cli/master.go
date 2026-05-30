@@ -37,7 +37,7 @@ func masterCommand() *command {
 				if a.jsonOutput {
 					return writeJSON(a.stdout, value)
 				}
-				writeMasterStatus(a.stdout, value)
+				writeMasterStatus(a.stdout, a.theme, value)
 				return nil
 			},
 		},

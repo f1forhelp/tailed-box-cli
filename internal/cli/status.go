@@ -21,19 +21,19 @@ func statusCommand() *command {
 				if a.jsonOutput {
 					return writeJSON(a.stdout, value)
 				}
-				writeMasterStatus(a.stdout, value)
+				writeMasterStatus(a.stdout, a.theme, value)
 			case config.RoleWorker:
 				value := status.ForWorker(a.cfg)
 				if a.jsonOutput {
 					return writeJSON(a.stdout, value)
 				}
-				writeWorkerStatus(a.stdout, value)
+				writeWorkerStatus(a.stdout, a.theme, value)
 			default:
 				value := status.ForLocal(a.cfg)
 				if a.jsonOutput {
 					return writeJSON(a.stdout, value)
 				}
-				writeLocalStatus(a.stdout, value)
+				writeLocalStatus(a.stdout, a.theme, value)
 			}
 			return nil
 		},

@@ -43,10 +43,10 @@ func debugLogsToggleCommand(name string, enabled bool) *command {
 			}
 			a.logger.InfoContext(ctx, "debug log setting changed", "enabled", enabled)
 			if enabled {
-				fmt.Fprintln(a.stdout, "Deep debug logs enabled.")
-				fmt.Fprintln(a.stdout, "Sensitive-looking values will continue to be redacted.")
+				fmt.Fprintln(a.stdout, a.theme.SuccessLine("Deep debug logs enabled."))
+				fmt.Fprintln(a.stdout, a.theme.NoteLine("Sensitive-looking values will continue to be redacted."))
 			} else {
-				fmt.Fprintln(a.stdout, "Deep debug logs disabled.")
+				fmt.Fprintln(a.stdout, a.theme.SuccessLine("Deep debug logs disabled."))
 			}
 			return nil
 		},
