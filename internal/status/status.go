@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/tailedbox/tailedbox/internal/config"
+	"github.com/tailedbox/tailedbox/internal/secrets"
 )
 
 type NodeHealth string
@@ -21,12 +22,15 @@ const (
 )
 
 type NodeStatus struct {
-	NodeID       string     `json:"node_id"`
-	Role         string     `json:"role"`
-	Reachability string     `json:"reachability"`
-	MeshState    MeshState  `json:"mesh_state"`
-	LastSeen     time.Time  `json:"last_seen"`
-	Health       NodeHealth `json:"health"`
+	NodeID              string     `json:"node_id"`
+	Role                string     `json:"role"`
+	Reachability        string     `json:"reachability"`
+	MeshState           MeshState  `json:"mesh_state"`
+	LastSeen            time.Time  `json:"last_seen"`
+	IdentityReady       bool       `json:"identity_ready"`
+	AgentConfigReady    bool       `json:"agent_config_ready"`
+	IdentityFingerprint string     `json:"identity_fingerprint,omitempty"`
+	Health              NodeHealth `json:"health"`
 }
 
 type MasterStatus struct {
@@ -46,6 +50,9 @@ type WorkerStatus struct {
 	NodeID                   string     `json:"node_id"`
 	Role                     string     `json:"role"`
 	Initialized              bool       `json:"initialized"`
+	IdentityReady            bool       `json:"identity_ready"`
+	AgentConfigReady         bool       `json:"agent_config_ready"`
+	IdentityFingerprint      string     `json:"identity_fingerprint,omitempty"`
 	JoinedToMasterCluster    bool       `json:"joined_to_master_cluster"`
 	ConnectedToMasterCluster bool       `json:"connected_to_master_cluster"`
 	Authenticated            bool       `json:"authenticated"`
@@ -55,13 +62,16 @@ type WorkerStatus struct {
 }
 
 type LocalStatus struct {
-	NodeID      string     `json:"node_id"`
-	Role        string     `json:"role"`
-	Initialized bool       `json:"initialized"`
-	ConfigFile  string     `json:"config_file"`
-	StateDir    string     `json:"state_dir"`
-	LogFile     string     `json:"log_file"`
-	Health      NodeHealth `json:"health"`
+	NodeID              string     `json:"node_id"`
+	Role                string     `json:"role"`
+	Initialized         bool       `json:"initialized"`
+	IdentityReady       bool       `json:"identity_ready"`
+	AgentConfigReady    bool       `json:"agent_config_ready"`
+	IdentityFingerprint string     `json:"identity_fingerprint,omitempty"`
+	ConfigFile          string     `json:"config_file"`
+	StateDir            string     `json:"state_dir"`
+	LogFile             string     `json:"log_file"`
+	Health              NodeHealth `json:"health"`
 }
 
 func ForMaster(cfg *config.Config, now time.Time) MasterStatus {
@@ -84,6 +94,9 @@ func ForWorker(cfg *config.Config) WorkerStatus {
 		NodeID:                   nodeIDOrUnassigned(cfg),
 		Role:                     roleOrUninitialized(cfg),
 		Initialized:              initialized,
+		IdentityReady:            identityReady(cfg),
+		AgentConfigReady:         agentConfigReady(cfg),
+		IdentityFingerprint:      cfg.Node.Identity.PublicKeyFingerprint,
 		JoinedToMasterCluster:    false,
 		ConnectedToMasterCluster: false,
 		Authenticated:            false,
@@ -97,25 +110,31 @@ func ForLocal(cfg *config.Config) LocalStatus {
 	initialized := cfg.Node.Role != ""
 	health := HealthDegraded
 	return LocalStatus{
-		NodeID:      nodeIDOrUnassigned(cfg),
-		Role:        roleOrUninitialized(cfg),
-		Initialized: initialized,
-		ConfigFile:  cfg.Paths.ConfigFile,
-		StateDir:    cfg.Paths.StateDir,
-		LogFile:     cfg.Paths.LogFile,
-		Health:      health,
+		NodeID:              nodeIDOrUnassigned(cfg),
+		Role:                roleOrUninitialized(cfg),
+		Initialized:         initialized,
+		IdentityReady:       identityReady(cfg),
+		AgentConfigReady:    agentConfigReady(cfg),
+		IdentityFingerprint: cfg.Node.Identity.PublicKeyFingerprint,
+		ConfigFile:          cfg.Paths.ConfigFile,
+		StateDir:            cfg.Paths.StateDir,
+		LogFile:             cfg.Paths.LogFile,
+		Health:              health,
 	}
 }
 
 func baseNodeStatus(cfg *config.Config, now time.Time) NodeStatus {
 	role := roleOrUninitialized(cfg)
 	return NodeStatus{
-		NodeID:       nodeIDOrUnassigned(cfg),
-		Role:         role,
-		Reachability: "local",
-		MeshState:    MeshNotConfigured,
-		LastSeen:     now.UTC(),
-		Health:       HealthDegraded,
+		NodeID:              nodeIDOrUnassigned(cfg),
+		Role:                role,
+		Reachability:        "local",
+		MeshState:           MeshNotConfigured,
+		LastSeen:            now.UTC(),
+		IdentityReady:       identityReady(cfg),
+		AgentConfigReady:    agentConfigReady(cfg),
+		IdentityFingerprint: cfg.Node.Identity.PublicKeyFingerprint,
+		Health:              HealthDegraded,
 	}
 }
 
@@ -150,4 +169,14 @@ func roleOrUninitialized(cfg *config.Config) string {
 		return "uninitialized"
 	}
 	return cfg.Node.Role
+}
+
+func identityReady(cfg *config.Config) bool {
+	return cfg.Node.Identity.PublicKeyFingerprint != "" &&
+		secrets.Exists(cfg.Paths.IdentityPrivateKeyFile) &&
+		secrets.Exists(cfg.Paths.IdentityPublicKeyFile)
+}
+
+func agentConfigReady(cfg *config.Config) bool {
+	return secrets.Exists(cfg.Paths.AgentConfigFile)
 }

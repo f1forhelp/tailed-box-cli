@@ -40,6 +40,9 @@ func writeMasterStatus(w io.Writer, t theme, value status.MasterStatus) {
 		{"Role", value.Current.Role},
 		{"Reachability", value.Current.Reachability},
 		{"Mesh", t.Mesh(string(value.Current.MeshState))},
+		{"Identity", readyString(t, value.Current.IdentityReady)},
+		{"Agent config", readyString(t, value.Current.AgentConfigReady)},
+		{"Identity fingerprint", optionalString(value.Current.IdentityFingerprint, "missing")},
 		{"Last seen", value.Current.LastSeen.Format("2006-01-02 15:04:05 MST")},
 		{"Health", t.Health(string(value.Current.Health))},
 	})
@@ -52,11 +55,13 @@ func writeMasterStatus(w io.Writer, t theme, value status.MasterStatus) {
 			node.Role,
 			node.Reachability,
 			t.Mesh(string(node.MeshState)),
+			readyString(t, node.IdentityReady),
+			readyString(t, node.AgentConfigReady),
 			node.LastSeen.Format("2006-01-02 15:04:05 MST"),
 			t.Health(string(node.Health)),
 		})
 	}
-	fmt.Fprintln(w, renderTable(t, []string{"NODE ID", "ROLE", "REACHABILITY", "MESH", "LAST SEEN", "HEALTH"}, rows))
+	fmt.Fprintln(w, renderTable(t, []string{"NODE ID", "ROLE", "REACHABILITY", "MESH", "IDENTITY", "AGENT", "LAST SEEN", "HEALTH"}, rows))
 	fmt.Fprintln(w)
 	fmt.Fprintf(
 		w,
@@ -76,6 +81,9 @@ func writeWorkerStatus(w io.Writer, t theme, value status.WorkerStatus) {
 		{"Node ID", value.NodeID},
 		{"Role", value.Role},
 		{"Initialized", t.Bool(value.Initialized)},
+		{"Identity", readyString(t, value.IdentityReady)},
+		{"Agent config", readyString(t, value.AgentConfigReady)},
+		{"Identity fingerprint", optionalString(value.IdentityFingerprint, "missing")},
 		{"Joined to master cluster", t.Bool(value.JoinedToMasterCluster)},
 		{"Connected to master cluster", t.Bool(value.ConnectedToMasterCluster)},
 		{"Authenticated", t.Bool(value.Authenticated)},
@@ -92,6 +100,9 @@ func writeLocalStatus(w io.Writer, t theme, value status.LocalStatus) {
 		{"Node ID", value.NodeID},
 		{"Role", value.Role},
 		{"Initialized", t.Bool(value.Initialized)},
+		{"Identity", readyString(t, value.IdentityReady)},
+		{"Agent config", readyString(t, value.AgentConfigReady)},
+		{"Identity fingerprint", optionalString(value.IdentityFingerprint, "missing")},
 		{"Config file", value.ConfigFile},
 		{"State directory", value.StateDir},
 		{"Log file", value.LogFile},
@@ -121,5 +132,19 @@ func renderTable(t theme, headers []string, rows [][]string) string {
 }
 
 func plannedMessage(area string) string {
-	return strings.TrimSpace(area) + " is planned for a later Tailedbox POC part and is intentionally not implemented in Part 1."
+	return strings.TrimSpace(area) + " is planned for a later Tailedbox POC part and is intentionally not implemented yet."
+}
+
+func readyString(t theme, ready bool) string {
+	if ready {
+		return t.Success("ready")
+	}
+	return t.Warning("missing")
+}
+
+func optionalString(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
 }

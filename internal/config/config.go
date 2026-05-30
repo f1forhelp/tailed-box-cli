@@ -32,16 +32,30 @@ type Config struct {
 }
 
 type Paths struct {
-	ConfigFile string `json:"config_file"`
-	StateDir   string `json:"state_dir"`
-	LogDir     string `json:"log_dir"`
-	LogFile    string `json:"log_file"`
+	ConfigFile             string `json:"config_file"`
+	StateDir               string `json:"state_dir"`
+	LogDir                 string `json:"log_dir"`
+	LogFile                string `json:"log_file"`
+	SecretsDir             string `json:"secrets_dir"`
+	AgentDir               string `json:"agent_dir"`
+	NodeMetadataFile       string `json:"node_metadata_file"`
+	AgentConfigFile        string `json:"agent_config_file"`
+	IdentityPrivateKeyFile string `json:"identity_private_key_file"`
+	IdentityPublicKeyFile  string `json:"identity_public_key_file"`
 }
 
 type NodeConfig struct {
-	ID            string    `json:"id,omitempty"`
-	Role          string    `json:"role,omitempty"`
-	InitializedAt time.Time `json:"initialized_at,omitempty"`
+	ID            string         `json:"id,omitempty"`
+	Role          string         `json:"role,omitempty"`
+	InitializedAt time.Time      `json:"initialized_at,omitempty"`
+	Identity      IdentityConfig `json:"identity,omitempty"`
+}
+
+type IdentityConfig struct {
+	Algorithm            string    `json:"algorithm,omitempty"`
+	PublicKeyFingerprint string    `json:"public_key_fingerprint,omitempty"`
+	PublicKeyFile        string    `json:"public_key_file,omitempty"`
+	CreatedAt            time.Time `json:"created_at,omitempty"`
 }
 
 type ClusterConfig struct {
@@ -113,11 +127,22 @@ func ResolvePaths(opts LoadOptions) (Paths, error) {
 		logDir = filepath.Join(stateDir, "logs")
 	}
 
+	cleanStateDir := filepath.Clean(stateDir)
+	cleanLogDir := filepath.Clean(logDir)
+	secretsDir := filepath.Join(cleanStateDir, "secrets")
+	agentDir := filepath.Join(cleanStateDir, "agent")
+
 	return Paths{
-		ConfigFile: filepath.Clean(configFile),
-		StateDir:   filepath.Clean(stateDir),
-		LogDir:     filepath.Clean(logDir),
-		LogFile:    filepath.Join(filepath.Clean(logDir), "tailedbox.log.jsonl"),
+		ConfigFile:             filepath.Clean(configFile),
+		StateDir:               cleanStateDir,
+		LogDir:                 cleanLogDir,
+		LogFile:                filepath.Join(cleanLogDir, "tailedbox.log.jsonl"),
+		SecretsDir:             secretsDir,
+		AgentDir:               agentDir,
+		NodeMetadataFile:       filepath.Join(cleanStateDir, "node.json"),
+		AgentConfigFile:        filepath.Join(agentDir, "config.json"),
+		IdentityPrivateKeyFile: filepath.Join(secretsDir, "node_identity_ed25519.pem"),
+		IdentityPublicKeyFile:  filepath.Join(cleanStateDir, "node_identity_public.json"),
 	}, nil
 }
 
@@ -169,15 +194,25 @@ func Save(cfg *Config) error {
 }
 
 func EnsureRuntimeDirs(cfg *Config) error {
-	for _, dir := range []string{cfg.Paths.StateDir, cfg.Paths.LogDir} {
+	for _, dir := range []string{cfg.Paths.StateDir, cfg.Paths.LogDir, cfg.Paths.SecretsDir, cfg.Paths.AgentDir} {
 		if dir == "" {
 			return errors.New("runtime directory path is empty")
 		}
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return fmt.Errorf("create runtime directory %q: %w", dir, err)
 		}
+		if err := os.Chmod(dir, 0o700); err != nil {
+			return fmt.Errorf("secure runtime directory %q: %w", dir, err)
+		}
 	}
 	return nil
+}
+
+func RoleStateDir(cfg *Config) string {
+	if cfg == nil || cfg.Node.Role == "" {
+		return ""
+	}
+	return filepath.Join(cfg.Paths.StateDir, cfg.Node.Role)
 }
 
 func MarkInitialized(cfg *Config, role string, now time.Time) (bool, error) {
