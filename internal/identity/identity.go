@@ -160,6 +160,20 @@ func LoadPrivateKey(path string) (ed25519.PrivateKey, time.Time, error) {
 	return privateKey, info.ModTime().UTC(), nil
 }
 
+func LoadPublicIdentity(path string) (PublicIdentity, error) {
+	var publicIdentity PublicIdentity
+	if err := secrets.ReadJSON(path, &publicIdentity); err != nil {
+		return PublicIdentity{}, err
+	}
+	if publicIdentity.Version != 1 {
+		return PublicIdentity{}, fmt.Errorf("unsupported public identity version %d", publicIdentity.Version)
+	}
+	if publicIdentity.NodeID == "" || publicIdentity.Algorithm == "" || publicIdentity.PublicKey == "" || publicIdentity.PublicKeyFingerprint == "" {
+		return PublicIdentity{}, fmt.Errorf("public identity %q is incomplete", path)
+	}
+	return publicIdentity, nil
+}
+
 func marshalPrivateKey(privateKey ed25519.PrivateKey) ([]byte, error) {
 	data, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {

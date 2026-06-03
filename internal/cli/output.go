@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
@@ -85,6 +86,9 @@ func writeWorkerStatus(w io.Writer, t theme, value status.WorkerStatus) {
 		{"Agent config", readyString(t, value.AgentConfigReady)},
 		{"Identity fingerprint", optionalString(value.IdentityFingerprint, "missing")},
 		{"Joined to master cluster", t.Bool(value.JoinedToMasterCluster)},
+		{"Cluster ID", optionalString(value.ClusterID, "not joined")},
+		{"Cluster name", optionalString(value.ClusterName, "not joined")},
+		{"Reconnect lease", formatOptionalTime(value.ReconnectLeaseExpiresAt, "not joined")},
 		{"Connected to master cluster", t.Bool(value.ConnectedToMasterCluster)},
 		{"Authenticated", t.Bool(value.Authenticated)},
 		{"Mesh reachable", t.Bool(value.MeshReachable)},
@@ -147,4 +151,11 @@ func optionalString(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func formatOptionalTime(value time.Time, fallback string) string {
+	if value.IsZero() {
+		return fallback
+	}
+	return value.Format("2006-01-02 15:04:05 MST")
 }

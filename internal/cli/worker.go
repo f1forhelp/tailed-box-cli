@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/tailedbox/tailedbox/internal/config"
 	"github.com/tailedbox/tailedbox/internal/status"
 )
 
@@ -27,7 +28,7 @@ func workerCommand() *command {
 			name:        "status",
 			usage:       "tailedbox worker status [--json]",
 			summary:     "Show local worker-only status",
-			description: "Show only this worker node's local state. Cluster inventory is intentionally not shown to workers in Part 1.",
+			description: "Show only this worker node's local state. Cluster inventory is intentionally not shown to workers.",
 			needsConfig: true,
 			run: func(_ context.Context, a *app, args []string) error {
 				if len(args) != 0 {
@@ -41,7 +42,14 @@ func workerCommand() *command {
 				return nil
 			},
 		},
-		plannedLeaf("join", "tailedbox worker join --code <join-code>", "Join a master cluster with a one-time code", "Worker enrollment"),
+		&command{
+			name:        "join",
+			usage:       "tailedbox worker join --code <join-code> --master-state-dir <path>",
+			summary:     "Join a master cluster with a one-time code",
+			description: "Join a master cluster as a worker. Until mesh transport exists, --master-state-dir points at the issuing master's local state.",
+			needsConfig: true,
+			run:         runJoinWithRole(config.RoleWorker),
+		},
 	)
 	return worker
 }

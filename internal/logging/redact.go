@@ -8,9 +8,10 @@ import (
 )
 
 var (
-	sensitiveKey = regexp.MustCompile(`(?i)(join[-_ ]?code|token|secret|password|private[-_ ]?key|authorization|credential|decrypted[-_ ]?payload)`)
-	bearerValue  = regexp.MustCompile(`(?i)\bbearer\s+[a-z0-9._~+/=-]+`)
-	keyValue     = regexp.MustCompile(`(?i)\b(join[-_ ]?code|token|secret|password|private[-_ ]?key|authorization|credential)\b\s*[:=]\s*["']?[^"',\s}]+`)
+	sensitiveKey  = regexp.MustCompile(`(?i)(join[-_ ]?code|token|secret|password|private[-_ ]?key|authorization|credential|decrypted[-_ ]?payload)`)
+	bearerValue   = regexp.MustCompile(`(?i)\bbearer\s+[a-z0-9._~+/=-]+`)
+	joinCodeValue = regexp.MustCompile(`\btbxjc1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b`)
+	keyValue      = regexp.MustCompile(`(?i)\b(join[-_ ]?code|token|secret|password|private[-_ ]?key|authorization|credential)\b\s*[:=]\s*["']?[^"',\s}]+`)
 )
 
 type RedactingHandler struct {
@@ -47,6 +48,7 @@ func Redact(input string) string {
 		return input
 	}
 	input = bearerValue.ReplaceAllString(input, "Bearer <redacted>")
+	input = joinCodeValue.ReplaceAllString(input, "<redacted-join-code>")
 	return keyValue.ReplaceAllStringFunc(input, func(match string) string {
 		separator := strings.IndexAny(match, ":=")
 		if separator < 0 {

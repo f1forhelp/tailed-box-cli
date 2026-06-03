@@ -1,9 +1,12 @@
 package status
 
 import (
+	"errors"
+	"os"
 	"time"
 
 	"github.com/tailedbox/tailedbox/internal/config"
+	"github.com/tailedbox/tailedbox/internal/enrollment"
 	"github.com/tailedbox/tailedbox/internal/secrets"
 )
 
@@ -53,6 +56,9 @@ type WorkerStatus struct {
 	IdentityReady            bool       `json:"identity_ready"`
 	AgentConfigReady         bool       `json:"agent_config_ready"`
 	IdentityFingerprint      string     `json:"identity_fingerprint,omitempty"`
+	ClusterID                string     `json:"cluster_id,omitempty"`
+	ClusterName              string     `json:"cluster_name,omitempty"`
+	ReconnectLeaseExpiresAt  time.Time  `json:"reconnect_lease_expires_at,omitempty"`
 	JoinedToMasterCluster    bool       `json:"joined_to_master_cluster"`
 	ConnectedToMasterCluster bool       `json:"connected_to_master_cluster"`
 	Authenticated            bool       `json:"authenticated"`
@@ -77,6 +83,12 @@ type LocalStatus struct {
 func ForMaster(cfg *config.Config, now time.Time) MasterStatus {
 	current := baseNodeStatus(cfg, now)
 	nodes := []NodeStatus{current}
+	trustedNodes, err := enrollment.ListTrustedNodes(cfg.Paths)
+	if err == nil {
+		for _, trusted := range trustedNodes {
+			nodes = append(nodes, trustedNodeStatus(trusted))
+		}
+	}
 	return MasterStatus{
 		Current:    current,
 		KnownNodes: nodes,
@@ -86,6 +98,7 @@ func ForMaster(cfg *config.Config, now time.Time) MasterStatus {
 
 func ForWorker(cfg *config.Config) WorkerStatus {
 	initialized := cfg.Node.Role == config.RoleWorker
+	joined, joinedOK := joinedCluster(cfg)
 	health := HealthDegraded
 	if initialized {
 		health = HealthDegraded
@@ -97,12 +110,29 @@ func ForWorker(cfg *config.Config) WorkerStatus {
 		IdentityReady:            identityReady(cfg),
 		AgentConfigReady:         agentConfigReady(cfg),
 		IdentityFingerprint:      cfg.Node.Identity.PublicKeyFingerprint,
-		JoinedToMasterCluster:    false,
+		ClusterID:                joined.ClusterID,
+		ClusterName:              joined.ClusterName,
+		ReconnectLeaseExpiresAt:  joined.ReconnectLeaseExpiresAt,
+		JoinedToMasterCluster:    joinedOK,
 		ConnectedToMasterCluster: false,
 		Authenticated:            false,
 		MeshReachable:            false,
 		MeshState:                MeshNotConfigured,
 		Health:                   health,
+	}
+}
+
+func trustedNodeStatus(node enrollment.TrustedNode) NodeStatus {
+	return NodeStatus{
+		NodeID:              node.NodeID,
+		Role:                node.Role,
+		Reachability:        "unknown",
+		MeshState:           MeshNotConfigured,
+		LastSeen:            node.JoinedAt,
+		IdentityReady:       node.IdentityFingerprint != "",
+		AgentConfigReady:    false,
+		IdentityFingerprint: node.IdentityFingerprint,
+		Health:              HealthDegraded,
 	}
 }
 
@@ -179,4 +209,15 @@ func identityReady(cfg *config.Config) bool {
 
 func agentConfigReady(cfg *config.Config) bool {
 	return secrets.Exists(cfg.Paths.AgentConfigFile)
+}
+
+func joinedCluster(cfg *config.Config) (enrollment.JoinedCluster, bool) {
+	joined, err := enrollment.ReadJoinedCluster(cfg.Paths.JoinedClusterFile)
+	if err == nil {
+		return joined, true
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return enrollment.JoinedCluster{}, false
+	}
+	return enrollment.JoinedCluster{}, false
 }

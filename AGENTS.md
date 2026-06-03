@@ -20,12 +20,13 @@ Implemented so far:
 - CLI namespaces for `master`, `worker`, `mesh`, `network`, `node`, and `pg`.
 - Structured logging with redaction and opt-in debug logging.
 - Polished terminal output using Lip Gloss.
-- Part 3 work in progress: durable role initialization with local node identity,
-  strict file permissions, metadata, and agent config scaffold.
+- Part 3: durable role initialization with local node identity, strict file
+  permissions, metadata, and agent config scaffold.
+- Part 4: local-state join-code enrollment MVP with one-time codes, hashed code
+  secrets, trusted-node records, joined-cluster metadata, and audit events.
 
 Not implemented yet:
 
-- Join-code enrollment.
 - Local daemon/systemd service.
 - Mesh protocol and transport.
 - PostgreSQL managed service.
@@ -58,6 +59,8 @@ tailedbox init --role master
 tailedbox init --role worker
 tailedbox master status
 tailedbox worker status
+tailedbox master join-code create --role worker --ttl 15m
+tailedbox worker join --code <join-code> --master-state-dir <master-state-dir>
 tailedbox logs
 tailedbox debug logs enable
 tailedbox debug logs disable
@@ -73,6 +76,8 @@ tailedbox debug logs disable
 - Preserve JSON output behavior when improving human-readable CLI output.
 - Do not leak secrets, tokens, private keys, join codes, or decrypted payloads in
   logs or errors.
+- Do not persist raw join codes. Persist only short-lived hashes and minimal
+  metadata.
 - Keep filesystem permissions strict:
   - state and secret directories: `0700`
   - config, metadata, identity, and secret files: `0600`
@@ -108,10 +113,8 @@ permissions, and never logged.
 
 ## Recommended Roadmap
 
-1. Finish Part 3: Master/Worker Role Initialization.
-2. Part 4: Join-Code Enrollment Flow.
-3. Part 5: Local Agent Daemon and Systemd Integration.
-4. Part 6: Tailedbox Mesh Protocol Design.
-5. Part 7: Tailedbox Mesh MVP Implementation.
-6. Part 2: Versioned GitHub Release Installer, once the binary has meaningful
+1. Part 5: Local Agent Daemon and Systemd Integration.
+2. Part 6: Tailedbox Mesh Protocol Design.
+3. Part 7: Tailedbox Mesh MVP Implementation.
+4. Part 2: Versioned GitHub Release Installer, once the binary has meaningful
    node behavior to ship.

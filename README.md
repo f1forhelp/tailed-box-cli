@@ -31,6 +31,8 @@ tailedbox init --role master
 tailedbox init --role worker
 tailedbox master status
 tailedbox worker status
+tailedbox master join-code create --role worker --ttl 15m
+tailedbox worker join --code <join-code> --master-state-dir <master-state-dir>
 tailedbox logs
 tailedbox logs --follow
 tailedbox debug logs enable
@@ -39,6 +41,23 @@ tailedbox debug logs disable
 
 PostgreSQL and mesh command namespaces are present as planned stubs so future
 parts can fill them in without reshaping the CLI.
+
+## Enrollment POC
+
+`tailedbox master join-code create` creates one-time, short-lived enrollment
+codes for workers or additional masters. The raw code is printed once for the
+operator and is not persisted; the master stores only a hash and minimal
+metadata.
+
+Until the mesh transport exists, `tailedbox worker join` and `tailedbox master
+join` use a local-state transport stand-in:
+
+```bash
+tailedbox worker join --code <join-code> --master-state-dir <master-state-dir>
+```
+
+The `--master-state-dir` flag will be replaced by network enrollment over the
+Tailedbox mesh/control channel in later POC parts.
 
 ## Local State
 

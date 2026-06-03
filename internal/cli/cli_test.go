@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -202,6 +203,67 @@ func TestInitRefusesRoleChange(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "refusing to change role") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestJoinCodeCLIFlow(t *testing.T) {
+	masterDir := t.TempDir()
+	workerDir := t.TempDir()
+	masterPaths := testPathsInDir(masterDir)
+	workerPaths := testPathsInDir(workerDir)
+	var stdout, stderr bytes.Buffer
+
+	if err := Execute(context.Background(), &stdout, &stderr, append(masterPaths, "init", "--role", "master"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init master failed: %v\nstderr: %s", err, stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(workerPaths, "init", "--role", "worker"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init worker failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(masterPaths, "master", "join-code", "create", "--role", "worker", "--ttl", "15m"), buildinfo.Info{}); err != nil {
+		t.Fatalf("create join code failed: %v\nstderr: %s", err, stderr.String())
+	}
+	code := regexp.MustCompile(`tbxjc1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+`).FindString(stdout.String())
+	if code == "" {
+		t.Fatalf("join code missing from output:\n%s", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	joinArgs := append(workerPaths, "worker", "join", "--code", code, "--master-state-dir", filepath.Join(masterDir, "state"))
+	if err := Execute(context.Background(), &stdout, &stderr, joinArgs, buildinfo.Info{}); err != nil {
+		t.Fatalf("worker join failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(workerPaths, "--json", "worker", "status"), buildinfo.Info{}); err != nil {
+		t.Fatalf("worker status failed: %v\nstderr: %s", err, stderr.String())
+	}
+	var workerStatus map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &workerStatus); err != nil {
+		t.Fatalf("invalid worker status json: %v\n%s", err, stdout.String())
+	}
+	if workerStatus["joined_to_master_cluster"] != true {
+		t.Fatalf("expected joined worker status, got %s", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(masterPaths, "--json", "master", "status"), buildinfo.Info{}); err != nil {
+		t.Fatalf("master status failed: %v\nstderr: %s", err, stderr.String())
+	}
+	var masterStatus map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &masterStatus); err != nil {
+		t.Fatalf("invalid master status json: %v\n%s", err, stdout.String())
+	}
+	nodes, ok := masterStatus["known_nodes"].([]any)
+	if !ok || len(nodes) != 2 {
+		t.Fatalf("expected master plus worker in known nodes, got %s", stdout.String())
 	}
 }
 

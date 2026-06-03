@@ -9,8 +9,8 @@ import (
 )
 
 func TestRedact(t *testing.T) {
-	got := Redact("join_code=abc123 token:secret-value Authorization: Bearer abc.def")
-	for _, leaked := range []string{"abc123", "secret-value", "abc.def"} {
+	got := Redact("join_code=abc123 token:secret-value Authorization: Bearer abc.def code tbxjc1.abc_DEF.ghi_JKL")
+	for _, leaked := range []string{"abc123", "secret-value", "abc.def", "tbxjc1.abc_DEF.ghi_JKL"} {
 		if strings.Contains(got, leaked) {
 			t.Fatalf("redaction leaked %q in %q", leaked, got)
 		}

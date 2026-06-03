@@ -38,8 +38,14 @@ type Paths struct {
 	LogFile                string `json:"log_file"`
 	SecretsDir             string `json:"secrets_dir"`
 	AgentDir               string `json:"agent_dir"`
+	EnrollmentDir          string `json:"enrollment_dir"`
+	JoinCodesDir           string `json:"join_codes_dir"`
+	TrustedNodesDir        string `json:"trusted_nodes_dir"`
+	AuditDir               string `json:"audit_dir"`
+	AuditLogFile           string `json:"audit_log_file"`
 	NodeMetadataFile       string `json:"node_metadata_file"`
 	AgentConfigFile        string `json:"agent_config_file"`
+	JoinedClusterFile      string `json:"joined_cluster_file"`
 	IdentityPrivateKeyFile string `json:"identity_private_key_file"`
 	IdentityPublicKeyFile  string `json:"identity_public_key_file"`
 }
@@ -131,6 +137,8 @@ func ResolvePaths(opts LoadOptions) (Paths, error) {
 	cleanLogDir := filepath.Clean(logDir)
 	secretsDir := filepath.Join(cleanStateDir, "secrets")
 	agentDir := filepath.Join(cleanStateDir, "agent")
+	enrollmentDir := filepath.Join(cleanStateDir, "enrollment")
+	auditDir := filepath.Join(cleanStateDir, "audit")
 
 	return Paths{
 		ConfigFile:             filepath.Clean(configFile),
@@ -139,8 +147,14 @@ func ResolvePaths(opts LoadOptions) (Paths, error) {
 		LogFile:                filepath.Join(cleanLogDir, "tailedbox.log.jsonl"),
 		SecretsDir:             secretsDir,
 		AgentDir:               agentDir,
+		EnrollmentDir:          enrollmentDir,
+		JoinCodesDir:           filepath.Join(enrollmentDir, "join-codes"),
+		TrustedNodesDir:        filepath.Join(enrollmentDir, "trusted-nodes"),
+		AuditDir:               auditDir,
+		AuditLogFile:           filepath.Join(auditDir, "events.jsonl"),
 		NodeMetadataFile:       filepath.Join(cleanStateDir, "node.json"),
 		AgentConfigFile:        filepath.Join(agentDir, "config.json"),
+		JoinedClusterFile:      filepath.Join(cleanStateDir, "joined_cluster.json"),
 		IdentityPrivateKeyFile: filepath.Join(secretsDir, "node_identity_ed25519.pem"),
 		IdentityPublicKeyFile:  filepath.Join(cleanStateDir, "node_identity_public.json"),
 	}, nil
@@ -194,7 +208,16 @@ func Save(cfg *Config) error {
 }
 
 func EnsureRuntimeDirs(cfg *Config) error {
-	for _, dir := range []string{cfg.Paths.StateDir, cfg.Paths.LogDir, cfg.Paths.SecretsDir, cfg.Paths.AgentDir} {
+	for _, dir := range []string{
+		cfg.Paths.StateDir,
+		cfg.Paths.LogDir,
+		cfg.Paths.SecretsDir,
+		cfg.Paths.AgentDir,
+		cfg.Paths.EnrollmentDir,
+		cfg.Paths.JoinCodesDir,
+		cfg.Paths.TrustedNodesDir,
+		cfg.Paths.AuditDir,
+	} {
 		if dir == "" {
 			return errors.New("runtime directory path is empty")
 		}
