@@ -24,6 +24,22 @@ func meshCommand() *command {
 	}
 	attach(mesh,
 		&command{
+			name:        "enable",
+			usage:       "tailedbox mesh enable [--listen-udp-port 41677]",
+			summary:     "Enable mesh runtime",
+			description: "Enable the mesh runtime in the local agent config. UDP transport is still the next Part 7 slice.",
+			needsConfig: true,
+			run:         runMeshEnable,
+		},
+		&command{
+			name:        "disable",
+			usage:       "tailedbox mesh disable",
+			summary:     "Disable mesh runtime",
+			description: "Disable the mesh runtime in the local agent config without changing node identity or enrollment state.",
+			needsConfig: true,
+			run:         runMeshDisable,
+		},
+		&command{
 			name:        "status",
 			usage:       "tailedbox mesh status [--json]",
 			summary:     "Show mesh status",
@@ -57,6 +73,62 @@ func meshCommand() *command {
 		},
 	)
 	return mesh
+}
+
+type meshConfigResult struct {
+	Changed         bool             `json:"changed"`
+	AgentConfigFile string           `json:"agent_config_file"`
+	Mesh            agent.MeshConfig `json:"mesh"`
+}
+
+func runMeshEnable(_ context.Context, a *app, args []string) error {
+	fs := flag.NewFlagSet("mesh enable", flag.ContinueOnError)
+	fs.SetOutput(a.stderr)
+	listenUDPPort := fs.Int("listen-udp-port", 0, "UDP port for mesh listeners; masters default to 41677")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("unexpected argument %q", fs.Arg(0))
+	}
+	result, err := agent.UpdateMeshConfig(a.cfg, agent.MeshUpdateOptions{
+		Enabled:       true,
+		ListenUDPPort: *listenUDPPort,
+		Now:           time.Now(),
+	})
+	if err != nil {
+		return err
+	}
+	payload := meshConfigResult{Changed: result.Changed, AgentConfigFile: result.Path, Mesh: result.Config.Mesh}
+	if a.jsonOutput {
+		return writeJSON(a.stdout, payload)
+	}
+	writeMeshConfigResult(a.stdout, a.theme, "Mesh enabled.", payload)
+	return nil
+}
+
+func runMeshDisable(_ context.Context, a *app, args []string) error {
+	fs := flag.NewFlagSet("mesh disable", flag.ContinueOnError)
+	fs.SetOutput(a.stderr)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("unexpected argument %q", fs.Arg(0))
+	}
+	result, err := agent.UpdateMeshConfig(a.cfg, agent.MeshUpdateOptions{
+		Enabled: false,
+		Now:     time.Now(),
+	})
+	if err != nil {
+		return err
+	}
+	payload := meshConfigResult{Changed: result.Changed, AgentConfigFile: result.Path, Mesh: result.Config.Mesh}
+	if a.jsonOutput {
+		return writeJSON(a.stdout, payload)
+	}
+	writeMeshConfigResult(a.stdout, a.theme, "Mesh disabled.", payload)
+	return nil
 }
 
 func runMeshStatus(ctx context.Context, a *app, args []string) error {

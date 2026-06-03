@@ -7,10 +7,11 @@ The current POC includes the project bootstrap, CLI skeleton, local
 master/worker role initialization, local-state enrollment foundation, and a
 lightweight local agent/systemd lifecycle. The mesh protocol design is captured
 in `docs/mesh-protocol-design.md`, and the first internal mesh
-protocol/store/crypto foundation exists. The local agent now owns a mesh control
-socket and the `tailedbox mesh status`, `peers`, `ping`, and `diagnose` command
-surfaces are active. The encrypted UDP mesh transport is not implemented yet.
-PostgreSQL is intentionally still reserved for after the mesh foundation.
+protocol/store/crypto/session foundation exists. The local agent now owns a mesh
+control socket and the `tailedbox mesh enable`, `disable`, `status`, `peers`,
+`ping`, and `diagnose` command surfaces are active. The encrypted UDP mesh
+transport is not implemented yet. PostgreSQL is intentionally still reserved for
+after the mesh foundation.
 
 ## Build
 
@@ -57,6 +58,8 @@ tailedbox logs
 tailedbox logs --follow
 tailedbox debug logs enable
 tailedbox debug logs disable
+tailedbox mesh enable
+tailedbox mesh disable
 tailedbox mesh status
 tailedbox mesh peers
 tailedbox mesh ping <node-id>
@@ -82,13 +85,15 @@ The current Part 7 foundation includes:
 - `internal/mesh/store` for private mesh status and peer observation files.
 - `internal/mesh/crypto` for transcript signatures, X25519/HKDF session keys,
   nonce construction, and AES-GCM helpers.
+- `internal/mesh/session` for replay-window tracking and encrypted packet
+  seal/open helpers bound to the `TBXM` envelope header.
 - `internal/mesh/control` for the local agent control socket used by mesh CLI
   commands.
 - `internal/mesh/service` for the agent-owned mesh service scaffold and runtime
   status refresh.
 
-The next Part 7 slice is UDP transport, encrypted session establishment, replay
-protection, and real authenticated ping/pong over the mesh.
+The next Part 7 slice is UDP transport, enrolled handshake/session wiring, rekey
+handling, and real authenticated ping/pong over the mesh.
 
 ## Enrollment POC
 

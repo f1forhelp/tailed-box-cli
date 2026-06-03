@@ -300,6 +300,62 @@ func TestMeshStatusBeforeAgentRun(t *testing.T) {
 	}
 }
 
+func TestMeshEnableDisableUpdatesAgentConfig(t *testing.T) {
+	paths := testPaths(t)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "master"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "--json", "mesh", "enable", "--listen-udp-port", "42424"), buildinfo.Info{}); err != nil {
+		t.Fatalf("mesh enable failed: %v\nstderr: %s", err, stderr.String())
+	}
+	var enabled map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &enabled); err != nil {
+		t.Fatalf("invalid mesh enable json: %v\n%s", err, stdout.String())
+	}
+	mesh, ok := enabled["mesh"].(map[string]any)
+	if !ok {
+		t.Fatalf("mesh enable output missing mesh config: %s", stdout.String())
+	}
+	if mesh["enabled"] != true || mesh["listen_udp_port"] != float64(42424) {
+		t.Fatalf("unexpected enabled mesh config: %s", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "--json", "mesh", "status"), buildinfo.Info{}); err != nil {
+		t.Fatalf("mesh status failed: %v\nstderr: %s", err, stderr.String())
+	}
+	var status map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &status); err != nil {
+		t.Fatalf("invalid mesh status json: %v\n%s", err, stdout.String())
+	}
+	if status["enabled"] != true || status["state"] != "stopped" || status["listen_udp_port"] != float64(42424) {
+		t.Fatalf("mesh status did not reflect enabled config: %s", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "--json", "mesh", "disable"), buildinfo.Info{}); err != nil {
+		t.Fatalf("mesh disable failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "--json", "mesh", "status"), buildinfo.Info{}); err != nil {
+		t.Fatalf("mesh status after disable failed: %v\nstderr: %s", err, stderr.String())
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &status); err != nil {
+		t.Fatalf("invalid mesh status json after disable: %v\n%s", err, stdout.String())
+	}
+	if status["enabled"] != false || status["state"] != "disabled" {
+		t.Fatalf("mesh status did not reflect disabled config: %s", stdout.String())
+	}
+}
+
 func TestMeshPeersReadsRuntimeStore(t *testing.T) {
 	dir := t.TempDir()
 	paths := testPathsInDir(dir)

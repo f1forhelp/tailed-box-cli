@@ -37,6 +37,12 @@ type EnsureResult struct {
 	Config  Config
 }
 
+type MeshUpdateOptions struct {
+	Enabled       bool
+	ListenUDPPort int
+	Now           time.Time
+}
+
 func EnsureConfig(cfg *config.Config, now time.Time) (EnsureResult, error) {
 	if cfg == nil {
 		return EnsureResult{}, errors.New("config is nil")
@@ -90,6 +96,34 @@ func ReadConfig(cfg *config.Config) (Config, error) {
 	}
 	value.Mesh = normalizeMeshConfig(value.Mesh, cfg.Node.Role)
 	return value, nil
+}
+
+func UpdateMeshConfig(cfg *config.Config, opts MeshUpdateOptions) (EnsureResult, error) {
+	if cfg == nil {
+		return EnsureResult{}, errors.New("config is nil")
+	}
+	if opts.ListenUDPPort < 0 || opts.ListenUDPPort > 65535 {
+		return EnsureResult{}, fmt.Errorf("listen UDP port must be between 0 and 65535")
+	}
+	now := opts.Now.UTC()
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	result, err := EnsureConfig(cfg, now)
+	if err != nil {
+		return EnsureResult{}, err
+	}
+	agentConfig := result.Config
+	agentConfig.Mesh.Enabled = opts.Enabled
+	if opts.ListenUDPPort != 0 {
+		agentConfig.Mesh.ListenUDPPort = opts.ListenUDPPort
+	}
+	agentConfig.Mesh = normalizeMeshConfig(agentConfig.Mesh, cfg.Node.Role)
+	changed, err := secrets.WriteJSONAtomic(cfg.Paths.AgentConfigFile, agentConfig)
+	if err != nil {
+		return EnsureResult{}, err
+	}
+	return EnsureResult{Changed: changed, Path: cfg.Paths.AgentConfigFile, Config: agentConfig}, nil
 }
 
 func defaultMeshConfig(role string) MeshConfig {

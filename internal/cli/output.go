@@ -145,6 +145,18 @@ func writeAgentStatus(w io.Writer, t theme, value agent.Status) {
 	}
 }
 
+func writeMeshConfigResult(w io.Writer, t theme, message string, value meshConfigResult) {
+	fmt.Fprintln(w, t.SuccessLine(message))
+	fmt.Fprintln(w)
+	writeKeyValues(w, t, "Mesh config", [][2]string{
+		{"Enabled", t.Bool(value.Mesh.Enabled)},
+		{"Provider", value.Mesh.Provider},
+		{"Listen UDP port", optionalInt(value.Mesh.ListenUDPPort, "not configured")},
+		{"Changed", t.Bool(value.Changed)},
+		{"Agent config", value.AgentConfigFile},
+	})
+}
+
 func writeMeshStatus(w io.Writer, t theme, value store.Status, live bool) {
 	fmt.Fprintln(w, t.Title("Mesh Status"))
 	fmt.Fprintln(w)

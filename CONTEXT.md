@@ -349,10 +349,14 @@ Implemented:
   ephemeral key generation, HKDF-SHA256 session key derivation, AES-256-GCM
   construction, and 96-bit nonce construction from a direction-specific prefix
   plus packet sequence.
+- `internal/mesh/session` with replay-window tracking, directional packet
+  sender/receiver helpers, AEAD packet seal/open, sequence allocation, and
+  associated-data binding to the `TBXM` envelope header.
 - Focused tests for packet encode/decode, malformed envelope rejection, control
   message shape, strict mesh store permissions, peer listing, transcript
   tamper detection, matching X25519/HKDF derivation on both sides, and AEAD
-  associated-data enforcement.
+  associated-data enforcement, replay rejection, duplicate packet rejection,
+  stale packet rejection, and packet-header tamper rejection.
 - `internal/mesh/control` with a local JSON request/response control socket for
   mesh status, peer listing, ping dispatch, and diagnostics. The default path is
   `<state-dir>/agent/control.sock`; long Unix socket paths fall back to a
@@ -369,13 +373,17 @@ Implemented:
 - `tailedbox mesh ping <node-id>` is active as a local-agent dispatch command;
   it requires a running agent and reports that encrypted UDP ping/pong is still
   the next transport slice.
+- `tailedbox mesh enable [--listen-udp-port <port>]` and
+  `tailedbox mesh disable` persist the mesh agent config without changing node
+  identity or enrollment state. Masters default to UDP port `41677`; workers
+  default to an ephemeral port until configured otherwise.
 
 Current Part 7 limitations:
 
 - The mesh service is a local control/status scaffold only; it does not open UDP
   mesh sockets yet.
-- No UDP listener, session manager, replay window, rekey loop, encrypted live
-  packet exchange, or authenticated mesh ping/pong is wired yet.
+- No UDP listener, enrolled handshake wiring, rekey loop, encrypted live packet
+  exchange, or authenticated mesh ping/pong is wired yet.
 - Network enrollment still uses local `--master-state-dir`; the designed
   `--master-endpoint` flow is not implemented yet.
 
@@ -430,6 +438,9 @@ tailedbox agent logs
 Mesh:
 
 ```bash
+tailedbox mesh enable
+tailedbox mesh enable --listen-udp-port 41677
+tailedbox mesh disable
 tailedbox mesh status
 tailedbox mesh status --json
 tailedbox mesh peers
@@ -612,7 +623,7 @@ Not done:
 
 - UDP peer transport and encrypted live packet exchange
 - encrypted mesh ping/pong over UDP
-- replay window and session manager
+- enrolled handshake wiring
 - session key rotation
 - reconnect lease enforcement over network
 - network enrollment over `--master-endpoint`
@@ -661,8 +672,9 @@ Not done:
 
 - No mesh session daemon is running yet.
 - No real network communication exists yet.
-- Mesh protocol, store, crypto, local agent control, and mesh CLI surfaces exist
-  but are not yet connected to UDP transport or encrypted live sessions.
+- Mesh protocol, store, crypto, session helpers, local agent control, and mesh
+  CLI surfaces exist but are not yet connected to UDP transport or encrypted
+  live sessions.
 - `tailedbox mesh ping` dispatches through the local agent control socket but
   cannot exchange network ping/pong until UDP transport lands.
 - Join-code enrollment is local-state backed.
@@ -708,6 +720,7 @@ tailedbox master status
 - docs: add mesh protocol design
 - feat: add mesh protocol, store, and crypto foundation
 - feat: add mesh agent control and CLI status surfaces
+- feat: add mesh config toggles and session packet helpers
 
 ## Commit Policy
 
@@ -735,9 +748,9 @@ Why Part 7 next:
 - The initial Part 7 protocol, store, and crypto primitives now exist.
 - The initial Part 7 agent control socket and mesh CLI status surfaces now
   exist.
-- The next useful milestone is UDP transport plus encrypted session
-  establishment so `tailedbox mesh ping` can exchange authenticated ping/pong
-  packets.
+- Mesh config toggles and session packet helpers now exist.
+- The next useful milestone is UDP transport plus enrolled handshake wiring so
+  `tailedbox mesh ping` can exchange authenticated ping/pong packets.
 
 Why not PostgreSQL next:
 

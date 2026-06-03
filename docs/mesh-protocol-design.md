@@ -11,10 +11,11 @@ Current implementation status:
 
 - Implemented: protocol envelope/control-message types, private mesh runtime
   store, transcript signing, X25519/HKDF key derivation, nonce construction, and
-  AES-GCM helpers, local agent control socket, agent mesh service scaffold, and
-  mesh CLI commands for status, peers, ping dispatch, and diagnostics.
-- Not implemented yet: UDP transport, encrypted live sessions, replay windows,
-  rekey loops, live mesh ping/pong, and network enrollment.
+  AES-GCM helpers, replay-window and encrypted packet seal/open helpers, local
+  agent control socket, agent mesh service scaffold, and mesh CLI commands for
+  enable/disable, status, peers, ping dispatch, and diagnostics.
+- Not implemented yet: UDP transport, enrolled handshake/session wiring, rekey
+  loops, live mesh ping/pong, and network enrollment.
 
 ## Goals
 

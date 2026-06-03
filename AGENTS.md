@@ -38,11 +38,14 @@ Implemented so far:
   writes mesh runtime status, preserves mesh agent config, and enables
   `tailedbox mesh status`, `peers`, `ping`, and `diagnose` command surfaces
   backed by the agent socket or private mesh state files.
+- Part 7 session/config slice: `tailedbox mesh enable` and `disable` persist
+  mesh agent config, and `internal/mesh/session` provides replay-window and
+  AEAD packet seal/open helpers bound to the `TBXM` envelope header.
 
 Not implemented yet:
 
 - UDP mesh transport, encrypted live packet exchange, live mesh ping/pong,
-  session manager, replay windows, and rekey loop.
+  enrolled handshake wiring, and rekey loop.
 - Network enrollment over `--master-endpoint`.
 - PostgreSQL managed service.
 - Release installer.
@@ -155,7 +158,7 @@ permissions, and never logged.
 2. Part 2: Versioned GitHub Release Installer, once the binary has meaningful
    node behavior to ship.
 
-The next Part 7 slice is UDP transport plus encrypted session establishment so
+The next Part 7 slice is UDP transport plus enrolled handshake/session wiring so
 the existing agent control socket and `tailedbox mesh ping` command can exchange
 real authenticated ping/pong packets. Do not start PostgreSQL or web UI work
 before the mesh transport is usable.
