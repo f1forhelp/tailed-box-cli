@@ -24,13 +24,14 @@ selected through local initialization and configuration.
 ## Current POC Focus
 
 The first real POC milestone is the secure Tailedbox mesh/VPN communication
-layer. The project is being built in smaller reviewable parts before that:
+layer. The project is being built in smaller reviewable parts:
 
 1. Bootstrap the CLI and project structure.
 2. Create durable local node identity and role initialization.
 3. Add a join-code enrollment foundation.
 4. Add local agent/systemd lifecycle.
-5. Design and implement the mesh.
+5. Design the mesh protocol.
+6. Implement the mesh MVP.
 
 PostgreSQL is intentionally not implemented yet. It remains the first planned
 managed service after the mesh/enrollment foundation is ready.
@@ -302,11 +303,36 @@ tailedbox agent logs
 
 Current agent limitations:
 
-- The agent does not yet open mesh sockets.
+- The agent does not yet start the designed mesh service or open mesh sockets.
 - The agent does not yet expose a local API.
 - Systemd install requires normal OS permissions, usually root.
 - Service control commands call `systemctl` and therefore work only on Linux
   systems with systemd.
+
+### Part 6: Tailedbox Mesh Protocol Design
+
+Implemented:
+
+- Protocol design document at `docs/mesh-protocol-design.md`.
+- Mesh threat model covering passive observers, active network attackers,
+  untrusted nodes, expired reconnect leases, and accidental public exposure.
+- Trust model based on existing Ed25519 node identity, master trusted-node
+  records, worker joined-cluster pinning, and reconnect lease metadata.
+- Handshake design using Ed25519 identity signatures, ephemeral X25519 key
+  exchange, HKDF-SHA256 key derivation, and AES-256-GCM payload encryption.
+- Versioned UDP packet envelope for handshake, encrypted data, rekey, and close
+  packets.
+- Network enrollment design that replaces the temporary local
+  `--master-state-dir` transport with a future `--master-endpoint` flow while
+  keeping raw join-code secrets encrypted on the wire and never persisted.
+- Peer discovery design based on explicit master endpoints, authenticated
+  learned peer endpoints, and private mesh runtime state.
+- Direct UDP MVP model with future relay fallback constraints.
+- Firewall posture for mesh/control traffic: masters expose only the configured
+  mesh UDP port, workers can remain outbound-only for the MVP, and local agent
+  control remains local-only.
+- Part 7 implementation boundaries for `internal/mesh`, agent integration,
+  `tailedbox mesh status`, `peers`, `ping`, and `diagnose`.
 
 ## Current Commands
 
@@ -528,18 +554,6 @@ Not done:
 - optional signature verification
 - self-update design
 
-### Part 6: Tailedbox Mesh Protocol Design
-
-Not done:
-
-- threat model document
-- handshake design
-- key lifecycle design
-- peer discovery design
-- packet flow design
-- direct path vs future relay fallback design
-- firewall model for mesh/control traffic
-
 ### Part 7: Tailedbox Mesh MVP Implementation
 
 Not done:
@@ -594,7 +608,7 @@ Not done:
 
 ## Known Current Limitations
 
-- No daemon is running yet.
+- No mesh session daemon is running yet.
 - No real network communication exists yet.
 - Join-code enrollment is local-state backed.
 - `connected_to_master_cluster`, `authenticated`, and `mesh_reachable` are still
@@ -636,6 +650,7 @@ tailedbox master status
 - feat: add join-code enrollment foundation
 - feat: add systemd service management for Tailedbox agent
 - feat: refactor interactive UI into internal/ui package
+- docs: add mesh protocol design
 
 ## Commit Policy
 
@@ -651,16 +666,18 @@ explicitly asks to commit.
 
 Recommended next implementation order:
 
-1. Part 6: Mesh Protocol Design.
-2. Part 7: Mesh MVP Implementation.
-3. Part 2: Versioned GitHub Release Installer.
+1. Part 7: Mesh MVP Implementation.
+2. Part 2: Versioned GitHub Release Installer.
 
-Why Part 6 next:
+Why Part 7 next:
 
 - Enrollment now exists as local state.
 - A long-running local agent now exists.
-- The mesh needs a written protocol/threat model before implementing encrypted
-  node-to-node transport.
+- Part 6 now provides a written protocol, threat model, handshake design,
+  packet flow, peer discovery model, and firewall posture.
+- The next useful milestone is encrypted node-to-node transport with mesh
+  status, peers, ping, diagnostics, and reconnect lease enforcement over the
+  network.
 
 Why not PostgreSQL next:
 

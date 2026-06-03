@@ -5,8 +5,10 @@ provisioning, and managing services on Linux VPSs.
 
 The current POC includes the project bootstrap, CLI skeleton, local
 master/worker role initialization, local-state enrollment foundation, and a
-lightweight local agent/systemd lifecycle. It intentionally does not implement
-PostgreSQL or the mesh transport yet.
+lightweight local agent/systemd lifecycle. The mesh protocol design is captured
+in `docs/mesh-protocol-design.md`, but the encrypted mesh transport is not
+implemented yet. PostgreSQL is intentionally still reserved for after the mesh
+foundation.
 
 ## Build
 
@@ -55,8 +57,17 @@ tailedbox debug logs enable
 tailedbox debug logs disable
 ```
 
-PostgreSQL and mesh command namespaces are present as planned stubs so future
-parts can fill them in without reshaping the CLI.
+PostgreSQL and mesh command namespaces are present as planned stubs. The mesh
+commands will become active during the Part 7 mesh MVP implementation.
+
+## Mesh Protocol Design
+
+Part 6 is documented in
+[`docs/mesh-protocol-design.md`](docs/mesh-protocol-design.md). The design
+covers the mesh threat model, node trust model, Ed25519/X25519 handshake,
+session key lifecycle, UDP packet envelope, network enrollment flow, peer
+discovery, direct UDP MVP, future relay fallback, firewall posture, and the
+implementation boundaries for Part 7.
 
 ## Enrollment POC
 
@@ -73,7 +84,7 @@ tailedbox worker join --code <join-code> --master-state-dir <master-state-dir>
 ```
 
 The `--master-state-dir` flag will be replaced by network enrollment over the
-Tailedbox mesh/control channel in later POC parts.
+Tailedbox mesh/control channel in the mesh MVP.
 
 ## Local Agent
 

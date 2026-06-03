@@ -5,7 +5,7 @@ func meshCommand() *command {
 		name:        "mesh",
 		usage:       "tailedbox mesh <command> [flags]",
 		summary:     "Mesh diagnostics and peer commands",
-		description: "The secure mesh implementation starts in Parts 6 and 7. Part 1 reserves the CLI namespace.",
+		description: "The secure mesh protocol is designed for Part 6. The Part 7 implementation will enable these commands.",
 	}
 	attach(mesh,
 		plannedLeaf("status", "tailedbox mesh status [--json]", "Show mesh status", "Mesh status"),
