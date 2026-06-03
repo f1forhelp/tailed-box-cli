@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -25,9 +26,9 @@ func meshCommand() *command {
 	attach(mesh,
 		&command{
 			name:        "enable",
-			usage:       "tailedbox mesh enable [--listen-udp-port 41677]",
+			usage:       "tailedbox mesh enable [--listen-udp-port 41677] [--master-endpoint host:port]",
 			summary:     "Enable mesh runtime",
-			description: "Enable the mesh runtime in the local agent config. UDP transport is still the next Part 7 slice.",
+			description: "Enable the mesh runtime in the local agent config. Workers can store a master UDP endpoint with --master-endpoint.",
 			needsConfig: true,
 			run:         runMeshEnable,
 		},
@@ -79,12 +80,14 @@ type meshConfigResult struct {
 	Changed         bool             `json:"changed"`
 	AgentConfigFile string           `json:"agent_config_file"`
 	Mesh            agent.MeshConfig `json:"mesh"`
+	MasterEndpoints []string         `json:"master_endpoints,omitempty"`
 }
 
 func runMeshEnable(_ context.Context, a *app, args []string) error {
 	fs := flag.NewFlagSet("mesh enable", flag.ContinueOnError)
 	fs.SetOutput(a.stderr)
 	listenUDPPort := fs.Int("listen-udp-port", 0, "UDP port for mesh listeners; masters default to 41677")
+	masterEndpoint := fs.String("master-endpoint", "", "Master mesh UDP endpoint for workers, formatted as host:port")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -99,7 +102,24 @@ func runMeshEnable(_ context.Context, a *app, args []string) error {
 	if err != nil {
 		return err
 	}
-	payload := meshConfigResult{Changed: result.Changed, AgentConfigFile: result.Path, Mesh: result.Config.Mesh}
+	if strings.TrimSpace(*masterEndpoint) != "" {
+		endpoint, err := normalizeEndpoint(*masterEndpoint)
+		if err != nil {
+			return err
+		}
+		if !containsString(a.cfg.Cluster.MasterEndpoints, endpoint) {
+			a.cfg.Cluster.MasterEndpoints = append(a.cfg.Cluster.MasterEndpoints, endpoint)
+			if err := a.saveConfig(); err != nil {
+				return err
+			}
+		}
+	}
+	payload := meshConfigResult{
+		Changed:         result.Changed,
+		AgentConfigFile: result.Path,
+		Mesh:            result.Config.Mesh,
+		MasterEndpoints: append([]string(nil), a.cfg.Cluster.MasterEndpoints...),
+	}
 	if a.jsonOutput {
 		return writeJSON(a.stdout, payload)
 	}
@@ -123,7 +143,12 @@ func runMeshDisable(_ context.Context, a *app, args []string) error {
 	if err != nil {
 		return err
 	}
-	payload := meshConfigResult{Changed: result.Changed, AgentConfigFile: result.Path, Mesh: result.Config.Mesh}
+	payload := meshConfigResult{
+		Changed:         result.Changed,
+		AgentConfigFile: result.Path,
+		Mesh:            result.Config.Mesh,
+		MasterEndpoints: append([]string(nil), a.cfg.Cluster.MasterEndpoints...),
+	}
 	if a.jsonOutput {
 		return writeJSON(a.stdout, payload)
 	}
@@ -323,4 +348,25 @@ func appendMessage(existing, message string) string {
 		return message
 	}
 	return existing + "; " + message
+}
+
+func normalizeEndpoint(endpoint string) (string, error) {
+	endpoint = strings.TrimSpace(endpoint)
+	host, port, err := net.SplitHostPort(endpoint)
+	if err != nil {
+		return "", fmt.Errorf("master endpoint must be formatted as host:port: %w", err)
+	}
+	if strings.TrimSpace(host) == "" || strings.TrimSpace(port) == "" {
+		return "", errors.New("master endpoint host and port are required")
+	}
+	return net.JoinHostPort(host, port), nil
+}
+
+func containsString(values []string, value string) bool {
+	for _, existing := range values {
+		if existing == value {
+			return true
+		}
+	}
+	return false
 }

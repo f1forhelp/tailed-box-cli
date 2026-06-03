@@ -22,7 +22,7 @@ const (
 	OperationPing     = "mesh.ping"
 	OperationDiagnose = "mesh.diagnose"
 
-	DefaultTimeout = 500 * time.Millisecond
+	DefaultTimeout = 5 * time.Second
 
 	maxUnixSocketPath = 100
 )

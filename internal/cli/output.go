@@ -152,6 +152,7 @@ func writeMeshConfigResult(w io.Writer, t theme, message string, value meshConfi
 		{"Enabled", t.Bool(value.Mesh.Enabled)},
 		{"Provider", value.Mesh.Provider},
 		{"Listen UDP port", optionalInt(value.Mesh.ListenUDPPort, "not configured")},
+		{"Master endpoints", optionalString(strings.Join(value.MasterEndpoints, ", "), "none")},
 		{"Changed", t.Bool(value.Changed)},
 		{"Agent config", value.AgentConfigFile},
 	})

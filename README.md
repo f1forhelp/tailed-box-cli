@@ -9,9 +9,9 @@ lightweight local agent/systemd lifecycle. The mesh protocol design is captured
 in `docs/mesh-protocol-design.md`, and the first internal mesh
 protocol/store/crypto/session foundation exists. The local agent now owns a mesh
 control socket and the `tailedbox mesh enable`, `disable`, `status`, `peers`,
-`ping`, and `diagnose` command surfaces are active. The encrypted UDP mesh
-transport is not implemented yet. PostgreSQL is intentionally still reserved for
-after the mesh foundation.
+`ping`, and `diagnose` command surfaces are active. Direct enrolled
+worker-to-master UDP ping/pong is encrypted and authenticated. PostgreSQL is
+intentionally still reserved for after the mesh foundation.
 
 ## Build
 
@@ -59,6 +59,7 @@ tailedbox logs --follow
 tailedbox debug logs enable
 tailedbox debug logs disable
 tailedbox mesh enable
+tailedbox mesh enable --master-endpoint <host:port>
 tailedbox mesh disable
 tailedbox mesh status
 tailedbox mesh peers
@@ -67,8 +68,8 @@ tailedbox mesh diagnose
 ```
 
 PostgreSQL remains a planned namespace. Mesh commands are active for local
-runtime status, peer observations, diagnostics, and local-agent ping dispatch;
-encrypted UDP ping/pong arrives in the next Part 7 transport slice.
+runtime status, peer observations, diagnostics, local-agent ping dispatch, and
+direct encrypted UDP worker-to-master ping/pong.
 
 ## Mesh Protocol Design
 
@@ -87,13 +88,16 @@ The current Part 7 foundation includes:
   nonce construction, and AES-GCM helpers.
 - `internal/mesh/session` for replay-window tracking and encrypted packet
   seal/open helpers bound to the `TBXM` envelope header.
+- `internal/mesh/transport` for direct UDP listen/send/receive, enrolled
+  handshake validation, and encrypted worker-to-master ping/pong.
 - `internal/mesh/control` for the local agent control socket used by mesh CLI
   commands.
 - `internal/mesh/service` for the agent-owned mesh service scaffold and runtime
   status refresh.
 
-The next Part 7 slice is UDP transport, enrolled handshake/session wiring, rekey
-handling, and real authenticated ping/pong over the mesh.
+The next Part 7 slice is durable session lifecycle, rekey handling,
+master-to-worker routing beyond observed endpoints, reconnect lease enforcement
+over live sessions, and network enrollment over `--master-endpoint`.
 
 ## Enrollment POC
 
@@ -102,8 +106,8 @@ codes for workers or additional masters. The raw code is printed once for the
 operator and is not persisted; the master stores only a hash and minimal
 metadata.
 
-Until the mesh transport exists, `tailedbox worker join` and `tailedbox master
-join` use a local-state transport stand-in:
+Until network enrollment exists, `tailedbox worker join` and `tailedbox master
+join` still use a local-state enrollment stand-in:
 
 ```bash
 tailedbox worker join --code <join-code> --master-state-dir <master-state-dir>

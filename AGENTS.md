@@ -41,11 +41,15 @@ Implemented so far:
 - Part 7 session/config slice: `tailedbox mesh enable` and `disable` persist
   mesh agent config, and `internal/mesh/session` provides replay-window and
   AEAD packet seal/open helpers bound to the `TBXM` envelope header.
+- Part 7 transport slice: `internal/mesh/transport` provides direct UDP
+  listen/send/receive, enrolled handshake validation, Ed25519 transcript
+  verification, X25519/HKDF session keys, replay protection, and encrypted
+  worker-to-master `tailedbox mesh ping`/pong through the agent control socket.
 
 Not implemented yet:
 
-- UDP mesh transport, encrypted live packet exchange, live mesh ping/pong,
-  enrolled handshake wiring, and rekey loop.
+- Durable multi-peer session lifecycle, rekey loop, master-to-worker routing
+  beyond observed endpoints, and reconnect lease enforcement over live sessions.
 - Network enrollment over `--master-endpoint`.
 - PostgreSQL managed service.
 - Release installer.
@@ -158,7 +162,7 @@ permissions, and never logged.
 2. Part 2: Versioned GitHub Release Installer, once the binary has meaningful
    node behavior to ship.
 
-The next Part 7 slice is UDP transport plus enrolled handshake/session wiring so
-the existing agent control socket and `tailedbox mesh ping` command can exchange
-real authenticated ping/pong packets. Do not start PostgreSQL or web UI work
-before the mesh transport is usable.
+The next Part 7 slice is durable session lifecycle, rekey handling, broader peer
+routing, reconnect lease enforcement over live sessions, and network enrollment
+over `--master-endpoint`. Do not start PostgreSQL or web UI work before the mesh
+foundation is reliable.

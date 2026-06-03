@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -414,6 +416,82 @@ func TestMeshPingRequiresRunningAgent(t *testing.T) {
 	}
 }
 
+func TestMeshPingOverRunningAgents(t *testing.T) {
+	masterDir := t.TempDir()
+	workerDir := t.TempDir()
+	masterPaths := testPathsInDir(masterDir)
+	workerPaths := testPathsInDir(workerDir)
+	var stdout, stderr bytes.Buffer
+
+	if err := Execute(context.Background(), &stdout, &stderr, append(masterPaths, "init", "--role", "master"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init master failed: %v\nstderr: %s", err, stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(workerPaths, "init", "--role", "worker"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init worker failed: %v\nstderr: %s", err, stderr.String())
+	}
+	masterCfg, err := config.Load(config.LoadOptions{
+		ConfigPath: filepath.Join(masterDir, "config.json"),
+		StateDir:   filepath.Join(masterDir, "state"),
+		LogDir:     filepath.Join(masterDir, "logs"),
+	})
+	if err != nil {
+		t.Fatalf("load master config: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(masterPaths, "master", "join-code", "create", "--role", "worker", "--ttl", "15m"), buildinfo.Info{}); err != nil {
+		t.Fatalf("create join code failed: %v\nstderr: %s", err, stderr.String())
+	}
+	code := regexp.MustCompile(`tbxjc1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+`).FindString(stdout.String())
+	if code == "" {
+		t.Fatalf("join code missing from output:\n%s", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(workerPaths, "worker", "join", "--code", code, "--master-state-dir", filepath.Join(masterDir, "state")), buildinfo.Info{}); err != nil {
+		t.Fatalf("worker join failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	port := freeUDPPort(t)
+	masterEndpoint := net.JoinHostPort("127.0.0.1", port)
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(masterPaths, "mesh", "enable", "--listen-udp-port", port), buildinfo.Info{}); err != nil {
+		t.Fatalf("enable master mesh failed: %v\nstderr: %s", err, stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(workerPaths, "mesh", "enable", "--master-endpoint", masterEndpoint), buildinfo.Info{}); err != nil {
+		t.Fatalf("enable worker mesh failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	masterErr := runAgentForTest(ctx, masterPaths)
+	workerErr := runAgentForTest(ctx, workerPaths)
+	defer assertAgentStops(t, cancel, masterErr, workerErr)
+
+	waitForMeshReady(t, masterPaths)
+	waitForMeshReady(t, workerPaths)
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(workerPaths, "--json", "mesh", "ping", masterCfg.Node.ID), buildinfo.Info{}); err != nil {
+		t.Fatalf("mesh ping failed: %v\nstderr: %s\nstdout: %s", err, stderr.String(), stdout.String())
+	}
+	var ping map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &ping); err != nil {
+		t.Fatalf("invalid mesh ping json: %v\n%s", err, stdout.String())
+	}
+	if ping["success"] != true {
+		t.Fatalf("expected successful mesh ping, got %s", stdout.String())
+	}
+}
+
 func TestAgentInstallDryRunPrintsSystemdUnit(t *testing.T) {
 	paths := testPaths(t)
 	var stdout, stderr bytes.Buffer
@@ -437,6 +515,61 @@ func TestAgentInstallDryRunPrintsSystemdUnit(t *testing.T) {
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("systemd unit output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func freeUDPPort(t *testing.T) string {
+	t.Helper()
+	packetConn, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve udp port: %v", err)
+	}
+	defer packetConn.Close()
+	addr, ok := packetConn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("unexpected udp addr: %T", packetConn.LocalAddr())
+	}
+	return strconv.Itoa(addr.Port)
+}
+
+func runAgentForTest(ctx context.Context, paths []string) <-chan error {
+	errCh := make(chan error, 1)
+	go func() {
+		var stdout, stderr bytes.Buffer
+		errCh <- Execute(ctx, &stdout, &stderr, append(paths, "agent", "run", "--heartbeat-interval", "20ms"), buildinfo.Info{})
+	}()
+	return errCh
+}
+
+func waitForMeshReady(t *testing.T, paths []string) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		var stdout, stderr bytes.Buffer
+		err := Execute(context.Background(), &stdout, &stderr, append(paths, "--json", "mesh", "diagnose"), buildinfo.Info{})
+		if err == nil {
+			var diagnose map[string]any
+			if json.Unmarshal(stdout.Bytes(), &diagnose) == nil && diagnose["agent_control_reachable"] == true && diagnose["udp_transport_ready"] == true {
+				return
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("mesh did not become ready")
+}
+
+func assertAgentStops(t *testing.T, cancel context.CancelFunc, channels ...<-chan error) {
+	t.Helper()
+	cancel()
+	for _, ch := range channels {
+		select {
+		case err := <-ch:
+			if err != nil {
+				t.Fatalf("agent run returned error: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("agent run did not stop")
 		}
 	}
 }

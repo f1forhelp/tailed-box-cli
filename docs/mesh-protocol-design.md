@@ -13,9 +13,11 @@ Current implementation status:
   store, transcript signing, X25519/HKDF key derivation, nonce construction, and
   AES-GCM helpers, replay-window and encrypted packet seal/open helpers, local
   agent control socket, agent mesh service scaffold, and mesh CLI commands for
-  enable/disable, status, peers, ping dispatch, and diagnostics.
-- Not implemented yet: UDP transport, enrolled handshake/session wiring, rekey
-  loops, live mesh ping/pong, and network enrollment.
+  enable/disable, status, peers, ping dispatch, and diagnostics. Direct enrolled
+  worker-to-master UDP ping/pong is implemented with transcript signatures,
+  X25519/HKDF session keys, replay protection, and encrypted control messages.
+- Not implemented yet: durable multi-peer session lifecycle, rekey loops,
+  master-to-worker routing beyond observed endpoints, and network enrollment.
 
 ## Goals
 

@@ -352,11 +352,17 @@ Implemented:
 - `internal/mesh/session` with replay-window tracking, directional packet
   sender/receiver helpers, AEAD packet seal/open, sequence allocation, and
   associated-data binding to the `TBXM` envelope header.
+- `internal/mesh/transport` with direct UDP listen/send/receive, enrolled
+  client/server handshake payloads, Ed25519 transcript signatures, X25519/HKDF
+  session keys, replay protection, trust validation from local trusted-node and
+  joined-cluster JSON state, encrypted client auth, encrypted ping/pong control
+  messages, and peer observation writes.
 - Focused tests for packet encode/decode, malformed envelope rejection, control
   message shape, strict mesh store permissions, peer listing, transcript
   tamper detection, matching X25519/HKDF derivation on both sides, and AEAD
   associated-data enforcement, replay rejection, duplicate packet rejection,
-  stale packet rejection, and packet-header tamper rejection.
+  stale packet rejection, packet-header tamper rejection, and real loopback UDP
+  ping/pong between a locally enrolled worker and master.
 - `internal/mesh/control` with a local JSON request/response control socket for
   mesh status, peer listing, ping dispatch, and diagnostics. The default path is
   `<state-dir>/agent/control.sock`; long Unix socket paths fall back to a
@@ -371,19 +377,24 @@ Implemented:
   `tailedbox mesh diagnose` are active commands backed by the running agent when
   reachable, with private state-file fallback when the agent is offline.
 - `tailedbox mesh ping <node-id>` is active as a local-agent dispatch command;
-  it requires a running agent and reports that encrypted UDP ping/pong is still
-  the next transport slice.
+  it requires a running agent and can exchange encrypted UDP ping/pong with a
+  trusted master when the worker has a configured master endpoint.
 - `tailedbox mesh enable [--listen-udp-port <port>]` and
   `tailedbox mesh disable` persist the mesh agent config without changing node
   identity or enrollment state. Masters default to UDP port `41677`; workers
   default to an ephemeral port until configured otherwise.
+- `tailedbox mesh enable --master-endpoint <host:port>` stores a master UDP
+  endpoint in worker cluster config for direct mesh ping.
 
 Current Part 7 limitations:
 
-- The mesh service is a local control/status scaffold only; it does not open UDP
-  mesh sockets yet.
-- No UDP listener, enrolled handshake wiring, rekey loop, encrypted live packet
-  exchange, or authenticated mesh ping/pong is wired yet.
+- The mesh transport supports direct enrolled ping/pong, but it does not yet
+  maintain durable multi-peer sessions, rekey active sessions, or retry with
+  backoff.
+- Master-to-worker ping depends on an observed worker endpoint from prior worker
+  traffic; production NAT traversal and relay fallback are not implemented.
+- Reconnect lease enforcement exists during new master-side handshakes, but
+  active-session closure on lease expiry and rekey failure is not implemented.
 - Network enrollment still uses local `--master-state-dir`; the designed
   `--master-endpoint` flow is not implemented yet.
 
@@ -440,6 +451,7 @@ Mesh:
 ```bash
 tailedbox mesh enable
 tailedbox mesh enable --listen-udp-port 41677
+tailedbox mesh enable --master-endpoint <host:port>
 tailedbox mesh disable
 tailedbox mesh status
 tailedbox mesh status --json
@@ -621,9 +633,8 @@ Not done:
 
 Not done:
 
-- UDP peer transport and encrypted live packet exchange
-- encrypted mesh ping/pong over UDP
-- enrolled handshake wiring
+- durable multi-peer session lifecycle
+- master-to-worker routing without relying only on observed endpoints
 - session key rotation
 - reconnect lease enforcement over network
 - network enrollment over `--master-endpoint`
@@ -670,13 +681,11 @@ Not done:
 
 ## Known Current Limitations
 
-- No mesh session daemon is running yet.
-- No real network communication exists yet.
-- Mesh protocol, store, crypto, session helpers, local agent control, and mesh
-  CLI surfaces exist but are not yet connected to UDP transport or encrypted
-  live sessions.
-- `tailedbox mesh ping` dispatches through the local agent control socket but
-  cannot exchange network ping/pong until UDP transport lands.
+- Direct encrypted UDP worker-to-master ping/pong works after local enrollment,
+  `tailedbox mesh enable` on both nodes, and a worker `--master-endpoint`.
+- Mesh sessions are currently short-lived around ping flows rather than a
+  durable multi-peer session manager with rekey and backoff.
+- Master-to-worker ping requires a recently observed worker endpoint.
 - Join-code enrollment is local-state backed.
 - `connected_to_master_cluster`, `authenticated`, and `mesh_reachable` are still
   false because mesh sessions do not exist.
@@ -721,6 +730,7 @@ tailedbox master status
 - feat: add mesh protocol, store, and crypto foundation
 - feat: add mesh agent control and CLI status surfaces
 - feat: add mesh config toggles and session packet helpers
+- feat: add enrolled UDP mesh ping/pong
 
 ## Commit Policy
 
@@ -749,8 +759,10 @@ Why Part 7 next:
 - The initial Part 7 agent control socket and mesh CLI status surfaces now
   exist.
 - Mesh config toggles and session packet helpers now exist.
-- The next useful milestone is UDP transport plus enrolled handshake wiring so
-  `tailedbox mesh ping` can exchange authenticated ping/pong packets.
+- Direct enrolled UDP ping/pong now works for worker-to-master traffic.
+- The next useful milestone is durable session lifecycle, rekey handling,
+  broader peer routing, reconnect lease enforcement over active sessions, and
+  network enrollment.
 
 Why not PostgreSQL next:
 

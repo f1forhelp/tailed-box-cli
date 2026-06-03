@@ -189,7 +189,7 @@ func associatedData(packet protocol.Packet) ([]byte, error) {
 
 func encryptedPacketType(packetType protocol.PacketType) bool {
 	switch packetType {
-	case protocol.PacketTypeEncryptedData, protocol.PacketTypeRekey, protocol.PacketTypeClose:
+	case protocol.PacketTypeClientAuth, protocol.PacketTypeEncryptedData, protocol.PacketTypeRekey, protocol.PacketTypeClose:
 		return true
 	default:
 		return false

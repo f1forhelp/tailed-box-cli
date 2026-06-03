@@ -12,6 +12,7 @@ import (
 	"github.com/tailedbox/tailedbox/internal/config"
 	"github.com/tailedbox/tailedbox/internal/mesh/control"
 	"github.com/tailedbox/tailedbox/internal/mesh/store"
+	"github.com/tailedbox/tailedbox/internal/mesh/transport"
 )
 
 type MeshConfig struct {
@@ -26,14 +27,14 @@ type Options struct {
 }
 
 type Service struct {
-	cfg          *config.Config
-	meshConfig   MeshConfig
-	listener     net.Listener
-	controlPath  string
-	startedAt    time.Time
-	logger       *slog.Logger
-	now          func() time.Time
-	transportErr error
+	cfg         *config.Config
+	meshConfig  MeshConfig
+	listener    net.Listener
+	controlPath string
+	startedAt   time.Time
+	logger      *slog.Logger
+	now         func() time.Time
+	transport   *transport.Transport
 }
 
 func Start(ctx context.Context, cfg *config.Config, meshConfig MeshConfig, opts Options) (*Service, error) {
@@ -52,17 +53,31 @@ func Start(ctx context.Context, cfg *config.Config, meshConfig MeshConfig, opts 
 		return nil, err
 	}
 	service := &Service{
-		cfg:          cfg,
-		meshConfig:   meshConfig,
-		listener:     listener,
-		controlPath:  controlPath,
-		startedAt:    now().UTC(),
-		logger:       opts.Logger,
-		now:          now,
-		transportErr: errors.New("UDP mesh transport is not implemented in this Part 7 slice"),
+		cfg:         cfg,
+		meshConfig:  meshConfig,
+		listener:    listener,
+		controlPath: controlPath,
+		startedAt:   now().UTC(),
+		logger:      opts.Logger,
+		now:         now,
+	}
+	if meshConfig.Enabled {
+		udpTransport, err := transport.Start(ctx, cfg, transport.Options{
+			ListenUDPPort: meshConfig.ListenUDPPort,
+			Logger:        opts.Logger,
+			Now:           opts.Now,
+		})
+		if err != nil {
+			_ = listener.Close()
+			return nil, fmt.Errorf("start mesh UDP transport: %w", err)
+		}
+		service.transport = udpTransport
 	}
 	if err := service.writeStatus(); err != nil {
 		_ = listener.Close()
+		if service.transport != nil {
+			_ = service.transport.Close()
+		}
 		return nil, err
 	}
 	go control.Serve(ctx, listener, service.handle)
@@ -77,6 +92,11 @@ func (s *Service) Close() error {
 		return nil
 	}
 	err := s.listener.Close()
+	if s.transport != nil {
+		if transportErr := s.transport.Close(); err == nil {
+			err = transportErr
+		}
+	}
 	_ = os.Remove(s.controlPath)
 	return err
 }
@@ -88,7 +108,7 @@ func (s *Service) RefreshStatus() error {
 	return s.writeStatus()
 }
 
-func (s *Service) handle(_ context.Context, request control.Request) control.Response {
+func (s *Service) handle(ctx context.Context, request control.Request) control.Response {
 	switch request.Operation {
 	case control.OperationStatus:
 		status, err := store.ReadStatus(s.cfg.Paths)
@@ -110,12 +130,49 @@ func (s *Service) handle(_ context.Context, request control.Request) control.Res
 		if request.PeerNodeID == "" {
 			return control.ErrorResponse(errors.New("peer node id is required"))
 		}
-		response := control.ErrorResponse(s.transportErr)
+		if s.transport == nil {
+			err := errors.New("mesh UDP transport is not running; run tailedbox mesh enable and restart the agent")
+			response := control.ErrorResponse(err)
+			response.Ping = &control.PingResult{
+				Version:               1,
+				PeerNodeID:            request.PeerNodeID,
+				Success:               false,
+				Message:               err.Error(),
+				AgentControlReachable: true,
+			}
+			return response
+		}
+		endpoint, err := s.resolvePeerEndpoint(request.PeerNodeID)
+		if err != nil {
+			response := control.ErrorResponse(err)
+			response.Ping = &control.PingResult{
+				Version:               1,
+				PeerNodeID:            request.PeerNodeID,
+				Success:               false,
+				Message:               err.Error(),
+				AgentControlReachable: true,
+			}
+			return response
+		}
+		latency, err := s.transport.Ping(ctx, request.PeerNodeID, endpoint)
+		if err != nil {
+			response := control.ErrorResponse(err)
+			response.Ping = &control.PingResult{
+				Version:               1,
+				PeerNodeID:            request.PeerNodeID,
+				Success:               false,
+				Message:               err.Error(),
+				AgentControlReachable: true,
+			}
+			return response
+		}
+		response := control.OKResponse()
 		response.Ping = &control.PingResult{
 			Version:               1,
 			PeerNodeID:            request.PeerNodeID,
-			Success:               false,
-			Message:               s.transportErr.Error(),
+			Success:               true,
+			Message:               "mesh ping succeeded",
+			LatencyMilliseconds:   latency.Milliseconds(),
 			AgentControlReachable: true,
 		}
 		return response
@@ -168,9 +225,17 @@ func (s *Service) status() (store.Status, error) {
 		status.Message = "mesh is disabled in the agent config"
 		return status, nil
 	}
-	status.State = store.StateStopped
-	status.Health = store.HealthDegraded
-	status.Message = s.transportErr.Error()
+	if s.transport == nil {
+		status.State = store.StateStopped
+		status.Health = store.HealthDegraded
+		status.Message = "mesh UDP transport is not running"
+		return status, nil
+	}
+	status.State = store.StateListening
+	status.Health = store.HealthHealthy
+	status.BoundEndpoint = s.transport.BoundEndpoint()
+	status.ListenUDPPort = s.transport.BoundUDPPort()
+	status.Message = "mesh UDP transport listening"
 	return status, nil
 }
 
@@ -186,8 +251,10 @@ func (s *Service) diagnose(agentReachable bool) (control.DiagnoseResult, error) 
 	messages := []string{}
 	if !s.meshConfig.Enabled {
 		messages = append(messages, "mesh is disabled in the agent config")
+	} else if s.transport == nil {
+		messages = append(messages, "mesh UDP transport is not running")
 	} else {
-		messages = append(messages, s.transportErr.Error())
+		messages = append(messages, "mesh UDP transport is listening")
 	}
 	if s.cfg.Node.Role == config.RoleMaster && s.meshConfig.ListenUDPPort == 0 {
 		messages = append(messages, "master mesh UDP port is not configured")
@@ -199,7 +266,7 @@ func (s *Service) diagnose(agentReachable bool) (control.DiagnoseResult, error) 
 		Version:               1,
 		AgentControlReachable: agentReachable,
 		MeshEnabled:           s.meshConfig.Enabled,
-		UDPTransportReady:     false,
+		UDPTransportReady:     s.transport != nil,
 		NodeID:                status.NodeID,
 		Role:                  status.Role,
 		State:                 status.State,
@@ -212,4 +279,21 @@ func (s *Service) diagnose(agentReachable bool) (control.DiagnoseResult, error) 
 		StatusFile:            runtimePaths.StatusFile,
 		Messages:              messages,
 	}, nil
+}
+
+func (s *Service) resolvePeerEndpoint(peerNodeID string) (string, error) {
+	if s.cfg.Node.Role == config.RoleWorker {
+		if len(s.cfg.Cluster.MasterEndpoints) == 0 {
+			return "", errors.New("worker has no configured master endpoints; run tailedbox mesh enable --master-endpoint <host:port>")
+		}
+		return s.cfg.Cluster.MasterEndpoints[0], nil
+	}
+	peer, err := store.ReadPeer(s.cfg.Paths, peerNodeID)
+	if err == nil && peer.LastEndpoint != "" {
+		return peer.LastEndpoint, nil
+	}
+	if s.cfg.Node.Role == config.RoleMaster {
+		return "", errors.New("master has no observed endpoint for this peer yet; have the peer ping the master first")
+	}
+	return "", errors.New("mesh peer endpoint is not configured")
 }
