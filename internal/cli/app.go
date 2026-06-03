@@ -12,6 +12,7 @@ import (
 	"github.com/tailedbox/tailedbox/internal/buildinfo"
 	"github.com/tailedbox/tailedbox/internal/config"
 	"github.com/tailedbox/tailedbox/internal/logging"
+	"github.com/tailedbox/tailedbox/internal/ui"
 )
 
 type app struct {
@@ -67,7 +68,7 @@ func (a *app) run(ctx context.Context, args []string) error {
 		return nil
 	}
 	if len(parsed) == 0 && cmd.run == nil && a.interactive {
-		selectedArgs, err := a.runMenu(ctx)
+		selectedArgs, err := ui.Run(a.stdin, a.stdout)
 		if err != nil {
 			return err
 		}

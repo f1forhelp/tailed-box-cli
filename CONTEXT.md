@@ -116,9 +116,11 @@ Implemented:
 - UI-only workflows are intentionally avoided so scripts, automation, future
   web workflows, and terminal users all share the same backend behavior.
 - Interactive UI code is split by responsibility:
+  - `internal/ui` owns the interactive no-args menu.
   - Bubble Tea model/update code owns keyboard input, cursor state, selected
     command args, and quit behavior.
   - Lip Gloss rendering/layout code lives behind a dedicated menu renderer.
+  - `internal/cli` launches the menu and dispatches the selected CLI args.
 - Project context updates are part of the normal implementation workflow:
   whenever behavior, architecture, decisions, commands, limitations, or roadmap
   items change, `CONTEXT.md` should be updated automatically before the work is
@@ -509,6 +511,8 @@ Rationale:
 - Both are idiomatic Go terminal UI packages.
 - The menu renderer boundary keeps layout changes separate from command
   selection behavior and makes the UI layer easier to test.
+- The current terminal UI package lives under `internal/ui`, keeping UI behavior
+  out of command dispatch code while staying simple at this project size.
 
 ## Not Implemented Yet
 
@@ -632,9 +636,10 @@ Recent commits:
 - `fc20495 style: polish CLI presentation`
 - `d118558 feat: add durable node role initialization`
 - `7d92d49 feat: add join-code enrollment foundation`
+- `bf967a1 feat: add systemd service management for Tailedbox agent`
 
-Current uncommitted work, if present, may include the interactive Bubble Tea menu
-improvement and Part 5 local agent/systemd lifecycle implementation.
+Current uncommitted work, if present, may include the interactive UI package
+flattening/refactor under `internal/ui`.
 
 ## Commit Policy
 
@@ -650,7 +655,7 @@ explicitly asks to commit.
 
 Recommended next implementation order:
 
-1. Commit the interactive CLI menu and Part 5 agent/systemd changes if approved.
+1. Commit the `internal/ui` package refactor if approved.
 2. Part 6: Mesh Protocol Design.
 3. Part 7: Mesh MVP Implementation.
 4. Part 2: Versioned GitHub Release Installer.

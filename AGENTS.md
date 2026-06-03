@@ -95,7 +95,9 @@ tailedbox debug logs disable
   through the same command dispatcher rather than separate UI-only logic.
 - Keep interactive UI responsibilities separated: Bubble Tea model/update code
   should own input and selection state, while Lip Gloss rendering/layout should
-  live behind dedicated renderer helpers.
+  live behind dedicated renderer helpers. Interactive terminal UI code belongs
+  under `internal/ui`; `internal/cli` should only launch it and dispatch the
+  selected CLI args.
 - Preserve non-interactive behavior for scripts. The interactive menu should run
   only when stdin and stdout are real terminals.
 - Do not leak secrets, tokens, private keys, join codes, or decrypted payloads in

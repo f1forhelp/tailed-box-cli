@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/tailedbox/tailedbox/internal/buildinfo"
+	"github.com/tailedbox/tailedbox/internal/ui"
 )
 
 func TestVersionCommand(t *testing.T) {
@@ -149,35 +149,17 @@ func TestExecuteInteractiveFallsBackToHelpForNonTTY(t *testing.T) {
 
 func TestInteractiveMenuItemsMapToCLICommands(t *testing.T) {
 	a := &app{}
-	for _, item := range newMenuModel(newTheme(io.Discard)).items {
-		if item.args == nil {
+	for _, action := range ui.DefaultActions() {
+		if action.Args == nil {
 			continue
 		}
-		parsed, help, err := a.parseGlobalFlags(item.args)
+		parsed, help, err := a.parseGlobalFlags(action.Args)
 		if err != nil {
-			t.Fatalf("menu item %q has invalid args %v: %v", item.title, item.args, err)
+			t.Fatalf("menu action %q has invalid args %v: %v", action.Title, action.Args, err)
 		}
 		cmd, _ := rootCommand().find(parsed)
 		if !help && cmd.run == nil {
-			t.Fatalf("menu item %q does not resolve to a runnable CLI command: %v", item.title, item.args)
-		}
-	}
-}
-
-func TestMenuRendererShowsSelectedCommand(t *testing.T) {
-	view := newMenuRenderer(newTheme(io.Discard)).Render(menuViewState{
-		items: []menuItem{
-			{
-				title:       "Agent status",
-				description: "Show local agent heartbeat, uptime, and memory usage.",
-				args:        []string{"agent", "status"},
-			},
-		},
-		width: 96,
-	})
-	for _, want := range []string{"Actions", "Selected", "Agent status", "tailedbox agent status"} {
-		if !strings.Contains(view, want) {
-			t.Fatalf("menu renderer output missing %q:\n%s", want, view)
+			t.Fatalf("menu action %q does not resolve to a runnable CLI command: %v", action.Title, action.Args)
 		}
 	}
 }
