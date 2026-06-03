@@ -15,7 +15,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := cli.Execute(ctx, os.Stdout, os.Stderr, os.Args[1:], buildinfo.Current()); err != nil {
+	if err := cli.ExecuteInteractive(ctx, os.Stdin, os.Stdout, os.Stderr, os.Args[1:], buildinfo.Current()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

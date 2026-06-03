@@ -45,6 +45,7 @@ type Paths struct {
 	AuditLogFile           string `json:"audit_log_file"`
 	NodeMetadataFile       string `json:"node_metadata_file"`
 	AgentConfigFile        string `json:"agent_config_file"`
+	AgentStatusFile        string `json:"agent_status_file"`
 	JoinedClusterFile      string `json:"joined_cluster_file"`
 	IdentityPrivateKeyFile string `json:"identity_private_key_file"`
 	IdentityPublicKeyFile  string `json:"identity_public_key_file"`
@@ -154,6 +155,7 @@ func ResolvePaths(opts LoadOptions) (Paths, error) {
 		AuditLogFile:           filepath.Join(auditDir, "events.jsonl"),
 		NodeMetadataFile:       filepath.Join(cleanStateDir, "node.json"),
 		AgentConfigFile:        filepath.Join(agentDir, "config.json"),
+		AgentStatusFile:        filepath.Join(agentDir, "status.json"),
 		JoinedClusterFile:      filepath.Join(cleanStateDir, "joined_cluster.json"),
 		IdentityPrivateKeyFile: filepath.Join(secretsDir, "node_identity_ed25519.pem"),
 		IdentityPublicKeyFile:  filepath.Join(cleanStateDir, "node_identity_public.json"),

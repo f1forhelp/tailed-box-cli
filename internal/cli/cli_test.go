@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tailedbox/tailedbox/internal/buildinfo"
 )
@@ -130,6 +132,156 @@ func TestNoArgsShowsRootHelp(t *testing.T) {
 	for _, want := range []string{"tailedbox", "Usage", "Core", "Future Surfaces"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("no-args help missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestExecuteInteractiveFallsBackToHelpForNonTTY(t *testing.T) {
+	var stdin, stdout, stderr bytes.Buffer
+	if err := ExecuteInteractive(context.Background(), &stdin, &stdout, &stderr, nil, buildinfo.Info{}); err != nil {
+		t.Fatalf("interactive fallback failed: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "Usage") || !strings.Contains(output, "Future Surfaces") {
+		t.Fatalf("expected help fallback for non-tty execution:\n%s", output)
+	}
+}
+
+func TestInteractiveMenuItemsMapToCLICommands(t *testing.T) {
+	a := &app{}
+	for _, item := range newMenuModel(newTheme(io.Discard)).items {
+		if item.args == nil {
+			continue
+		}
+		parsed, help, err := a.parseGlobalFlags(item.args)
+		if err != nil {
+			t.Fatalf("menu item %q has invalid args %v: %v", item.title, item.args, err)
+		}
+		cmd, _ := rootCommand().find(parsed)
+		if !help && cmd.run == nil {
+			t.Fatalf("menu item %q does not resolve to a runnable CLI command: %v", item.title, item.args)
+		}
+	}
+}
+
+func TestMenuRendererShowsSelectedCommand(t *testing.T) {
+	view := newMenuRenderer(newTheme(io.Discard)).Render(menuViewState{
+		items: []menuItem{
+			{
+				title:       "Agent status",
+				description: "Show local agent heartbeat, uptime, and memory usage.",
+				args:        []string{"agent", "status"},
+			},
+		},
+		width: 96,
+	})
+	for _, want := range []string{"Actions", "Selected", "Agent status", "tailedbox agent status"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("menu renderer output missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestAgentStatusBeforeRun(t *testing.T) {
+	paths := testPaths(t)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "worker"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "--json", "agent", "status"), buildinfo.Info{}); err != nil {
+		t.Fatalf("agent status failed: %v\nstderr: %s", err, stderr.String())
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("invalid agent status json: %v\n%s", err, stdout.String())
+	}
+	if payload["state"] != "stopped" {
+		t.Fatalf("expected stopped agent before run, got %s", stdout.String())
+	}
+	if payload["running"] != false {
+		t.Fatalf("expected non-running agent before run, got %s", stdout.String())
+	}
+	if payload["memory_alloc_bytes"] != float64(0) {
+		t.Fatalf("expected no memory heartbeat before run, got %s", stdout.String())
+	}
+}
+
+func TestAgentRunWritesHeartbeat(t *testing.T) {
+	dir := t.TempDir()
+	paths := testPathsInDir(dir)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "worker"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		var runStdout, runStderr bytes.Buffer
+		errCh <- Execute(ctx, &runStdout, &runStderr, append(paths, "agent", "run", "--heartbeat-interval", "20ms"), buildinfo.Info{})
+	}()
+	defer cancel()
+
+	statusFile := filepath.Join(dir, "state", "agent", "status.json")
+	var payload map[string]any
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		data, err := os.ReadFile(statusFile)
+		if err == nil {
+			payload = map[string]any{}
+			if err := json.Unmarshal(data, &payload); err != nil {
+				t.Fatalf("invalid agent status file json: %v\n%s", err, string(data))
+			}
+			if payload["state"] == "running" && payload["running"] == true {
+				break
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if payload["state"] != "running" || payload["running"] != true {
+		t.Fatalf("agent did not write running heartbeat: %#v", payload)
+	}
+	if alloc, ok := payload["memory_alloc_bytes"].(float64); !ok || alloc <= 0 {
+		t.Fatalf("expected memory allocation in heartbeat, got %#v", payload["memory_alloc_bytes"])
+	}
+
+	cancel()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("agent run returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("agent run did not stop after context cancellation")
+	}
+}
+
+func TestAgentInstallDryRunPrintsSystemdUnit(t *testing.T) {
+	paths := testPaths(t)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "master"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	args := append(paths, "agent", "install", "--dry-run", "--binary", "/usr/local/bin/tailedbox")
+	if err := Execute(context.Background(), &stdout, &stderr, args, buildinfo.Info{}); err != nil {
+		t.Fatalf("agent install dry-run failed: %v\nstderr: %s", err, stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		"[Unit]",
+		"ExecStart=\"/usr/local/bin/tailedbox\"",
+		"agent\" \"run\"",
+		"Restart=always",
+		"WantedBy=multi-user.target",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("systemd unit output missing %q:\n%s", want, output)
 		}
 	}
 }

@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+	"github.com/tailedbox/tailedbox/internal/agent"
 	"github.com/tailedbox/tailedbox/internal/status"
 )
 
@@ -114,6 +116,33 @@ func writeLocalStatus(w io.Writer, t theme, value status.LocalStatus) {
 	})
 }
 
+func writeAgentStatus(w io.Writer, t theme, value agent.Status) {
+	fmt.Fprintln(w, t.Title("Agent Status"))
+	fmt.Fprintln(w)
+	writeKeyValues(w, t, "Local agent", [][2]string{
+		{"Node ID", optionalString(value.NodeID, "unassigned")},
+		{"Role", optionalString(value.Role, "uninitialized")},
+		{"State", t.Health(value.State)},
+		{"Health", t.Health(value.Health)},
+		{"Running", t.Bool(value.Running)},
+		{"PID", optionalInt(value.PID, "not running")},
+		{"Started at", formatOptionalTime(value.StartedAt, "not running")},
+		{"Last heartbeat", formatOptionalTime(value.LastHeartbeatAt, "never")},
+		{"Heartbeat age", formatDurationSeconds(value.HeartbeatAgeSeconds)},
+		{"Uptime", formatDurationSeconds(value.UptimeSeconds)},
+		{"Memory alloc", formatBytes(value.MemoryAllocBytes)},
+		{"Memory sys", formatBytes(value.MemorySysBytes)},
+		{"Goroutines", strconv.Itoa(value.Goroutines)},
+		{"Status file", value.AgentStatusFile},
+		{"Systemd service", value.SystemdServiceName},
+		{"Systemd unit", value.SystemdUnitPath},
+	})
+	if value.Message != "" {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, t.NoteLine(value.Message))
+	}
+}
+
 func renderTable(t theme, headers []string, rows [][]string) string {
 	return table.New().
 		Border(lipgloss.ASCIIBorder()).
@@ -158,4 +187,33 @@ func formatOptionalTime(value time.Time, fallback string) string {
 		return fallback
 	}
 	return value.Format("2006-01-02 15:04:05 MST")
+}
+
+func optionalInt(value int, fallback string) string {
+	if value == 0 {
+		return fallback
+	}
+	return strconv.Itoa(value)
+}
+
+func formatDurationSeconds(seconds int64) string {
+	if seconds <= 0 {
+		return "0s"
+	}
+	return (time.Duration(seconds) * time.Second).String()
+}
+
+func formatBytes(bytes uint64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	value := float64(bytes)
+	for _, suffix := range []string{"KiB", "MiB", "GiB", "TiB"} {
+		value = value / unit
+		if value < unit {
+			return fmt.Sprintf("%.1f %s", value, suffix)
+		}
+	}
+	return fmt.Sprintf("%.1f PiB", value/unit)
 }

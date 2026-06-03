@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -14,10 +15,12 @@ import (
 )
 
 type app struct {
-	stdout io.Writer
-	stderr io.Writer
-	build  buildinfo.Info
-	theme  theme
+	stdin       io.Reader
+	stdout      io.Writer
+	stderr      io.Writer
+	build       buildinfo.Info
+	theme       theme
+	interactive bool
 
 	configPath string
 	stateDir   string
@@ -31,6 +34,18 @@ type app struct {
 
 func Execute(ctx context.Context, stdout, stderr io.Writer, args []string, build buildinfo.Info) error {
 	a := &app{stdout: stdout, stderr: stderr, build: build, theme: newTheme(stdout)}
+	return a.run(ctx, args)
+}
+
+func ExecuteInteractive(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, args []string, build buildinfo.Info) error {
+	a := &app{
+		stdin:       stdin,
+		stdout:      stdout,
+		stderr:      stderr,
+		build:       build,
+		theme:       newTheme(stdout),
+		interactive: isInteractiveTerminal(stdin, stdout),
+	}
 	return a.run(ctx, args)
 }
 
@@ -50,6 +65,16 @@ func (a *app) run(ctx context.Context, args []string) error {
 	if help {
 		cmd.printHelp(a.stdout, a.theme)
 		return nil
+	}
+	if len(parsed) == 0 && cmd.run == nil && a.interactive {
+		selectedArgs, err := a.runMenu(ctx)
+		if err != nil {
+			return err
+		}
+		if len(selectedArgs) == 0 {
+			return nil
+		}
+		return a.run(ctx, selectedArgs)
 	}
 	if cmd.run == nil {
 		cmd.printHelp(a.stdout, a.theme)
@@ -156,4 +181,21 @@ func (a *app) setGlobalFlag(name, value string) {
 
 func nowUTC() time.Time {
 	return time.Now().UTC()
+}
+
+func isInteractiveTerminal(stdin io.Reader, stdout io.Writer) bool {
+	in, inOK := stdin.(*os.File)
+	out, outOK := stdout.(*os.File)
+	if !inOK || !outOK {
+		return false
+	}
+	inInfo, err := in.Stat()
+	if err != nil {
+		return false
+	}
+	outInfo, err := out.Stat()
+	if err != nil {
+		return false
+	}
+	return inInfo.Mode()&os.ModeCharDevice != 0 && outInfo.Mode()&os.ModeCharDevice != 0
 }
