@@ -6,9 +6,11 @@ provisioning, and managing services on Linux VPSs.
 The current POC includes the project bootstrap, CLI skeleton, local
 master/worker role initialization, local-state enrollment foundation, and a
 lightweight local agent/systemd lifecycle. The mesh protocol design is captured
-in `docs/mesh-protocol-design.md`, but the encrypted mesh transport is not
-implemented yet. PostgreSQL is intentionally still reserved for after the mesh
-foundation.
+in `docs/mesh-protocol-design.md`, and the first internal mesh
+protocol/store/crypto foundation exists. The local agent now owns a mesh control
+socket and the `tailedbox mesh status`, `peers`, `ping`, and `diagnose` command
+surfaces are active. The encrypted UDP mesh transport is not implemented yet.
+PostgreSQL is intentionally still reserved for after the mesh foundation.
 
 ## Build
 
@@ -55,10 +57,15 @@ tailedbox logs
 tailedbox logs --follow
 tailedbox debug logs enable
 tailedbox debug logs disable
+tailedbox mesh status
+tailedbox mesh peers
+tailedbox mesh ping <node-id>
+tailedbox mesh diagnose
 ```
 
-PostgreSQL and mesh command namespaces are present as planned stubs. The mesh
-commands will become active during the Part 7 mesh MVP implementation.
+PostgreSQL remains a planned namespace. Mesh commands are active for local
+runtime status, peer observations, diagnostics, and local-agent ping dispatch;
+encrypted UDP ping/pong arrives in the next Part 7 transport slice.
 
 ## Mesh Protocol Design
 
@@ -68,6 +75,20 @@ covers the mesh threat model, node trust model, Ed25519/X25519 handshake,
 session key lifecycle, UDP packet envelope, network enrollment flow, peer
 discovery, direct UDP MVP, future relay fallback, firewall posture, and the
 implementation boundaries for Part 7.
+
+The current Part 7 foundation includes:
+
+- `internal/mesh/protocol` for packet envelopes and control-message types.
+- `internal/mesh/store` for private mesh status and peer observation files.
+- `internal/mesh/crypto` for transcript signatures, X25519/HKDF session keys,
+  nonce construction, and AES-GCM helpers.
+- `internal/mesh/control` for the local agent control socket used by mesh CLI
+  commands.
+- `internal/mesh/service` for the agent-owned mesh service scaffold and runtime
+  status refresh.
+
+The next Part 7 slice is UDP transport, encrypted session establishment, replay
+protection, and real authenticated ping/pong over the mesh.
 
 ## Enrollment POC
 
@@ -90,7 +111,8 @@ Tailedbox mesh/control channel in the mesh MVP.
 
 `tailedbox agent run` starts the lightweight foreground agent loop. It writes a
 local heartbeat file with node role, node ID, uptime, memory usage, goroutine
-count, and health state.
+count, and health state. It also starts the local mesh control socket and writes
+mesh runtime status under `<state-dir>/mesh/status.json`.
 
 ```bash
 tailedbox agent run

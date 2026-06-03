@@ -30,10 +30,20 @@ Implemented so far:
 - Part 5: lightweight local agent lifecycle with foreground run, heartbeat
   status, memory diagnostics, logs alias, and Linux systemd install/control
   commands.
+- Part 6: mesh protocol design documented in `docs/mesh-protocol-design.md`.
+- Part 7 foundation: internal mesh protocol envelope/control-message types,
+  private mesh runtime store, Ed25519 transcript signing, X25519/HKDF session
+  key derivation, nonce construction, and AES-GCM helpers.
+- Part 7 agent/CLI slice: `agent run` starts a local mesh control socket,
+  writes mesh runtime status, preserves mesh agent config, and enables
+  `tailedbox mesh status`, `peers`, `ping`, and `diagnose` command surfaces
+  backed by the agent socket or private mesh state files.
 
 Not implemented yet:
 
-- Mesh protocol and transport.
+- UDP mesh transport, encrypted live packet exchange, live mesh ping/pong,
+  session manager, replay windows, and rekey loop.
+- Network enrollment over `--master-endpoint`.
 - PostgreSQL managed service.
 - Release installer.
 - Web UI.
@@ -141,7 +151,11 @@ permissions, and never logged.
 
 ## Recommended Roadmap
 
-1. Part 6: Tailedbox Mesh Protocol Design.
-2. Part 7: Tailedbox Mesh MVP Implementation.
-3. Part 2: Versioned GitHub Release Installer, once the binary has meaningful
+1. Continue Part 7: Tailedbox Mesh MVP Implementation.
+2. Part 2: Versioned GitHub Release Installer, once the binary has meaningful
    node behavior to ship.
+
+The next Part 7 slice is UDP transport plus encrypted session establishment so
+the existing agent control socket and `tailedbox mesh ping` command can exchange
+real authenticated ping/pong packets. Do not start PostgreSQL or web UI work
+before the mesh transport is usable.

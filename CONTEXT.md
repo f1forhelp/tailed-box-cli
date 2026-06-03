@@ -334,6 +334,51 @@ Implemented:
 - Part 7 implementation boundaries for `internal/mesh`, agent integration,
   `tailedbox mesh status`, `peers`, `ping`, and `diagnose`.
 
+### Part 7: Tailedbox Mesh MVP Implementation Foundation
+
+Implemented:
+
+- `internal/mesh/protocol` with the versioned `TBXM` UDP packet envelope,
+  packet types for hello/auth/data/rekey/close, strict decode validation, and
+  JSON control-message types for ping, pong, peer updates, status, diagnostics,
+  and network enrollment messages.
+- `internal/mesh/store` with private mesh runtime paths under
+  `<state-dir>/mesh`, mesh status JSON, peer observation JSON files, sorted peer
+  listing, and path-traversal rejection for peer node IDs.
+- `internal/mesh/crypto` with Ed25519 transcript signing/verification, X25519
+  ephemeral key generation, HKDF-SHA256 session key derivation, AES-256-GCM
+  construction, and 96-bit nonce construction from a direction-specific prefix
+  plus packet sequence.
+- Focused tests for packet encode/decode, malformed envelope rejection, control
+  message shape, strict mesh store permissions, peer listing, transcript
+  tamper detection, matching X25519/HKDF derivation on both sides, and AEAD
+  associated-data enforcement.
+- `internal/mesh/control` with a local JSON request/response control socket for
+  mesh status, peer listing, ping dispatch, and diagnostics. The default path is
+  `<state-dir>/agent/control.sock`; long Unix socket paths fall back to a
+  deterministic private temp path and diagnostics report the actual socket path.
+- `internal/mesh/service` with an agent-owned mesh service scaffold that writes
+  mesh runtime status, serves the local control socket, reports disabled mesh as
+  healthy, and reports enabled mesh as degraded until UDP transport is wired.
+- `tailedbox agent run` starts the mesh service scaffold alongside heartbeat
+  status, refreshes `<state-dir>/mesh/status.json`, and preserves existing mesh
+  agent config when ensuring `agent/config.json`.
+- `tailedbox mesh status`, `tailedbox mesh peers`, and
+  `tailedbox mesh diagnose` are active commands backed by the running agent when
+  reachable, with private state-file fallback when the agent is offline.
+- `tailedbox mesh ping <node-id>` is active as a local-agent dispatch command;
+  it requires a running agent and reports that encrypted UDP ping/pong is still
+  the next transport slice.
+
+Current Part 7 limitations:
+
+- The mesh service is a local control/status scaffold only; it does not open UDP
+  mesh sockets yet.
+- No UDP listener, session manager, replay window, rekey loop, encrypted live
+  packet exchange, or authenticated mesh ping/pong is wired yet.
+- Network enrollment still uses local `--master-state-dir`; the designed
+  `--master-endpoint` flow is not implemented yet.
+
 ## Current Commands
 
 Core:
@@ -382,6 +427,18 @@ tailedbox agent restart
 tailedbox agent logs
 ```
 
+Mesh:
+
+```bash
+tailedbox mesh status
+tailedbox mesh status --json
+tailedbox mesh peers
+tailedbox mesh peers --json
+tailedbox mesh ping <node-id>
+tailedbox mesh diagnose
+tailedbox mesh diagnose --json
+```
+
 Logs and debug:
 
 ```bash
@@ -395,11 +452,6 @@ tailedbox debug logs disable
 Reserved future namespaces:
 
 ```bash
-tailedbox mesh status
-tailedbox mesh peers
-tailedbox mesh ping <node-id>
-tailedbox mesh diagnose
-
 tailedbox network create --driver tailedbox-mesh
 tailedbox network status
 tailedbox network peers
@@ -558,13 +610,12 @@ Not done:
 
 Not done:
 
-- encrypted node-to-node communication
-- UDP peer transport
-- mesh peer list
-- mesh ping
-- diagnostics
+- UDP peer transport and encrypted live packet exchange
+- encrypted mesh ping/pong over UDP
+- replay window and session manager
 - session key rotation
 - reconnect lease enforcement over network
+- network enrollment over `--master-endpoint`
 
 ### Security Hardening
 
@@ -610,6 +661,10 @@ Not done:
 
 - No mesh session daemon is running yet.
 - No real network communication exists yet.
+- Mesh protocol, store, crypto, local agent control, and mesh CLI surfaces exist
+  but are not yet connected to UDP transport or encrypted live sessions.
+- `tailedbox mesh ping` dispatches through the local agent control socket but
+  cannot exchange network ping/pong until UDP transport lands.
 - Join-code enrollment is local-state backed.
 - `connected_to_master_cluster`, `authenticated`, and `mesh_reachable` are still
   false because mesh sessions do not exist.
@@ -651,6 +706,8 @@ tailedbox master status
 - feat: add systemd service management for Tailedbox agent
 - feat: refactor interactive UI into internal/ui package
 - docs: add mesh protocol design
+- feat: add mesh protocol, store, and crypto foundation
+- feat: add mesh agent control and CLI status surfaces
 
 ## Commit Policy
 
@@ -675,9 +732,12 @@ Why Part 7 next:
 - A long-running local agent now exists.
 - Part 6 now provides a written protocol, threat model, handshake design,
   packet flow, peer discovery model, and firewall posture.
-- The next useful milestone is encrypted node-to-node transport with mesh
-  status, peers, ping, diagnostics, and reconnect lease enforcement over the
-  network.
+- The initial Part 7 protocol, store, and crypto primitives now exist.
+- The initial Part 7 agent control socket and mesh CLI status surfaces now
+  exist.
+- The next useful milestone is UDP transport plus encrypted session
+  establishment so `tailedbox mesh ping` can exchange authenticated ping/pong
+  packets.
 
 Why not PostgreSQL next:
 

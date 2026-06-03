@@ -26,6 +26,11 @@ type MeshConfig struct {
 	ListenUDPPort int    `json:"listen_udp_port"`
 }
 
+const (
+	DefaultMeshProvider      = "tailedbox-mesh"
+	DefaultMasterMeshUDPPort = 41677
+)
+
 type EnsureResult struct {
 	Changed bool
 	Path    string
@@ -63,15 +68,49 @@ func EnsureConfig(cfg *config.Config, now time.Time) (EnsureResult, error) {
 		StateDir:  cfg.Paths.StateDir,
 		LogFile:   cfg.Paths.LogFile,
 		CreatedAt: createdAt,
-		Mesh: MeshConfig{
-			Enabled:       false,
-			Provider:      "tailedbox-mesh",
-			ListenUDPPort: 0,
-		},
+		Mesh:      defaultMeshConfig(cfg.Node.Role),
+	}
+	if existing.NodeID != "" {
+		agentConfig.Mesh = normalizeMeshConfig(existing.Mesh, cfg.Node.Role)
 	}
 	changed, err := secrets.WriteJSONAtomic(cfg.Paths.AgentConfigFile, agentConfig)
 	if err != nil {
 		return EnsureResult{}, err
 	}
 	return EnsureResult{Changed: changed, Path: cfg.Paths.AgentConfigFile, Config: agentConfig}, nil
+}
+
+func ReadConfig(cfg *config.Config) (Config, error) {
+	if cfg == nil {
+		return Config{}, errors.New("config is nil")
+	}
+	var value Config
+	if err := secrets.ReadJSON(cfg.Paths.AgentConfigFile, &value); err != nil {
+		return Config{}, err
+	}
+	value.Mesh = normalizeMeshConfig(value.Mesh, cfg.Node.Role)
+	return value, nil
+}
+
+func defaultMeshConfig(role string) MeshConfig {
+	mesh := MeshConfig{
+		Enabled:       false,
+		Provider:      DefaultMeshProvider,
+		ListenUDPPort: 0,
+	}
+	if role == config.RoleMaster {
+		mesh.ListenUDPPort = DefaultMasterMeshUDPPort
+	}
+	return mesh
+}
+
+func normalizeMeshConfig(mesh MeshConfig, role string) MeshConfig {
+	defaults := defaultMeshConfig(role)
+	if mesh.Provider == "" {
+		mesh.Provider = defaults.Provider
+	}
+	if mesh.ListenUDPPort == 0 && role == config.RoleMaster {
+		mesh.ListenUDPPort = defaults.ListenUDPPort
+	}
+	return mesh
 }

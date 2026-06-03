@@ -168,7 +168,7 @@ func rootCommand() *command {
 		withGroup("Operations", agentCommand()),
 		withGroup("Operations", logsCommand()),
 		withGroup("Operations", debugCommand()),
-		withGroup("Future Surfaces", meshCommand()),
+		withGroup("Operations", meshCommand()),
 		withGroup("Future Surfaces", networkCommand()),
 		withGroup("Future Surfaces", nodeCommand()),
 		withGroup("Future Surfaces", pgCommand()),

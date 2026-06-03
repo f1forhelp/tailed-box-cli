@@ -7,6 +7,15 @@ The mesh is the secure node-to-node control transport for initialized and
 enrolled Tailedbox nodes. It is not a full IP tunnel yet, and it does not
 implement PostgreSQL, service orchestration, master HA, or a web UI.
 
+Current implementation status:
+
+- Implemented: protocol envelope/control-message types, private mesh runtime
+  store, transcript signing, X25519/HKDF key derivation, nonce construction, and
+  AES-GCM helpers, local agent control socket, agent mesh service scaffold, and
+  mesh CLI commands for status, peers, ping dispatch, and diagnostics.
+- Not implemented yet: UDP transport, encrypted live sessions, replay windows,
+  rekey loops, live mesh ping/pong, and network enrollment.
+
 ## Goals
 
 - Use the existing local node identity, enrollment, trusted-node, joined-cluster,
@@ -400,7 +409,9 @@ The socket is local-only, protected by the `0700` agent directory, and should us
 small JSON request/response messages. The first supported operations should be
 mesh status, peer listing, ping, and diagnostics. If the agent is not running,
 CLI commands may fall back to reading mesh status files but should report that
-live ping requires the agent.
+live ping requires the agent. On platforms with short Unix socket path limits,
+the implementation may use a deterministic short private temp path for the
+socket while reporting the actual path in diagnostics.
 
 ## Direct Path MVP
 

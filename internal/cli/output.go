@@ -11,6 +11,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/tailedbox/tailedbox/internal/agent"
+	"github.com/tailedbox/tailedbox/internal/mesh/control"
+	"github.com/tailedbox/tailedbox/internal/mesh/store"
 	"github.com/tailedbox/tailedbox/internal/status"
 )
 
@@ -143,6 +145,99 @@ func writeAgentStatus(w io.Writer, t theme, value agent.Status) {
 	}
 }
 
+func writeMeshStatus(w io.Writer, t theme, value store.Status, live bool) {
+	fmt.Fprintln(w, t.Title("Mesh Status"))
+	fmt.Fprintln(w)
+	writeKeyValues(w, t, "Local mesh", [][2]string{
+		{"Node ID", optionalString(value.NodeID, "unassigned")},
+		{"Role", optionalString(value.Role, "uninitialized")},
+		{"Agent control", reachableString(t, live)},
+		{"Enabled", t.Bool(value.Enabled)},
+		{"State", t.Mesh(value.State)},
+		{"Health", t.Health(value.Health)},
+		{"Listen UDP port", optionalInt(value.ListenUDPPort, "not configured")},
+		{"Bound endpoint", optionalString(value.BoundEndpoint, "not listening")},
+		{"Started at", formatOptionalTime(value.StartedAt, "not running")},
+		{"Last updated", formatOptionalTime(value.LastUpdatedAt, "never")},
+		{"Peers", strconv.Itoa(value.PeerCount)},
+		{"Connected peers", strconv.Itoa(value.EstablishedPeerCount)},
+	})
+	if value.Message != "" {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, t.NoteLine(value.Message))
+	}
+}
+
+func writeMeshPeers(w io.Writer, t theme, peers []store.PeerObservation, live bool) {
+	fmt.Fprintln(w, t.Title("Mesh Peers"))
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, t.Section("Source"))
+	fmt.Fprintf(w, "  %s  %s\n", t.Label("Agent control:"), reachableString(t, live))
+	fmt.Fprintln(w)
+	if len(peers) == 0 {
+		fmt.Fprintln(w, t.NoteLine("No mesh peer observations recorded yet."))
+		return
+	}
+	rows := make([][]string, 0, len(peers))
+	for _, peer := range peers {
+		rows = append(rows, []string{
+			peer.NodeID,
+			peer.Role,
+			peer.IdentityFingerprint,
+			optionalString(peer.LastEndpoint, "unknown"),
+			t.Mesh(peer.SessionState),
+			formatOptionalTime(peer.LastSeenAt, "never"),
+		})
+	}
+	fmt.Fprintln(w, renderTable(t, []string{"NODE ID", "ROLE", "FINGERPRINT", "ENDPOINT", "SESSION", "LAST SEEN"}, rows))
+}
+
+func writeMeshPing(w io.Writer, t theme, value control.PingResult) {
+	if value.Success {
+		fmt.Fprintln(w, t.SuccessLine("Mesh ping succeeded."))
+	} else {
+		fmt.Fprintf(w, "%s Mesh ping did not complete.\n", t.Warning("WARN"))
+	}
+	fmt.Fprintln(w)
+	writeKeyValues(w, t, "Ping", [][2]string{
+		{"Peer node", value.PeerNodeID},
+		{"Agent control", reachableString(t, value.AgentControlReachable)},
+		{"Success", t.Bool(value.Success)},
+		{"Latency", formatDurationSeconds(value.LatencyMilliseconds / 1000)},
+	})
+	if value.Message != "" {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, t.NoteLine(value.Message))
+	}
+}
+
+func writeMeshDiagnose(w io.Writer, t theme, value control.DiagnoseResult) {
+	fmt.Fprintln(w, t.Title("Mesh Diagnostics"))
+	fmt.Fprintln(w)
+	writeKeyValues(w, t, "Readiness", [][2]string{
+		{"Node ID", optionalString(value.NodeID, "unassigned")},
+		{"Role", optionalString(value.Role, "uninitialized")},
+		{"Agent control", reachableString(t, value.AgentControlReachable)},
+		{"Mesh enabled", t.Bool(value.MeshEnabled)},
+		{"UDP transport", readyString(t, value.UDPTransportReady)},
+		{"State", t.Mesh(value.State)},
+		{"Health", t.Health(value.Health)},
+		{"Listen UDP port", optionalInt(value.ListenUDPPort, "not configured")},
+		{"Bound endpoint", optionalString(value.BoundEndpoint, "not listening")},
+		{"Peers", strconv.Itoa(value.PeerCount)},
+		{"Connected peers", strconv.Itoa(value.EstablishedPeerCount)},
+		{"Control socket", value.ControlSocket},
+		{"Status file", value.StatusFile},
+	})
+	if len(value.Messages) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, t.Section("Findings"))
+		for _, message := range value.Messages {
+			fmt.Fprintln(w, "  "+t.NoteLine(message))
+		}
+	}
+}
+
 func renderTable(t theme, headers []string, rows [][]string) string {
 	return table.New().
 		Border(lipgloss.ASCIIBorder()).
@@ -173,6 +268,13 @@ func readyString(t theme, ready bool) string {
 		return t.Success("ready")
 	}
 	return t.Warning("missing")
+}
+
+func reachableString(t theme, reachable bool) string {
+	if reachable {
+		return t.Success("reachable")
+	}
+	return t.Warning("not reachable")
 }
 
 func optionalString(value, fallback string) string {

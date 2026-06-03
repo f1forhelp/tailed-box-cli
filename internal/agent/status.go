@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/tailedbox/tailedbox/internal/config"
+	meshservice "github.com/tailedbox/tailedbox/internal/mesh/service"
 	"github.com/tailedbox/tailedbox/internal/secrets"
 )
 
@@ -64,9 +65,22 @@ func Run(ctx context.Context, cfg *config.Config, opts RunOptions) error {
 	if cfg.Node.ID == "" || cfg.Node.Role == "" {
 		return errors.New("node must be initialized before running the agent")
 	}
-	if _, err := EnsureConfig(cfg, nowFrom(opts.Now)); err != nil {
+	agentConfigResult, err := EnsureConfig(cfg, nowFrom(opts.Now))
+	if err != nil {
 		return fmt.Errorf("ensure agent config: %w", err)
 	}
+	meshSvc, err := meshservice.Start(ctx, cfg, meshservice.MeshConfig{
+		Enabled:       agentConfigResult.Config.Mesh.Enabled,
+		Provider:      agentConfigResult.Config.Mesh.Provider,
+		ListenUDPPort: agentConfigResult.Config.Mesh.ListenUDPPort,
+	}, meshservice.Options{
+		Logger: opts.Logger,
+		Now:    opts.Now,
+	})
+	if err != nil {
+		return fmt.Errorf("start mesh service: %w", err)
+	}
+	defer meshSvc.Close()
 
 	interval := opts.HeartbeatInterval
 	if interval <= 0 {
@@ -87,6 +101,9 @@ func Run(ctx context.Context, cfg *config.Config, opts RunOptions) error {
 	if err := write(StateRunning, HealthHealthy, "agent running"); err != nil {
 		return err
 	}
+	if err := meshSvc.RefreshStatus(); err != nil {
+		return err
+	}
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -97,6 +114,9 @@ func Run(ctx context.Context, cfg *config.Config, opts RunOptions) error {
 			if opts.Logger != nil {
 				opts.Logger.InfoContext(context.Background(), "agent stopped", "node_id", cfg.Node.ID, "role", cfg.Node.Role)
 			}
+			if err := meshSvc.RefreshStatus(); err != nil {
+				return err
+			}
 			if err := write(StateStopped, HealthDegraded, "agent stopped"); err != nil {
 				return err
 			}
@@ -104,6 +124,9 @@ func Run(ctx context.Context, cfg *config.Config, opts RunOptions) error {
 		case <-ticker.C:
 			if opts.Logger != nil {
 				opts.Logger.DebugContext(ctx, "agent heartbeat", "node_id", cfg.Node.ID)
+			}
+			if err := meshSvc.RefreshStatus(); err != nil {
+				return err
 			}
 			if err := write(StateRunning, HealthHealthy, "agent running"); err != nil {
 				return err

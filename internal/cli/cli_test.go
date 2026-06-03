@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/tailedbox/tailedbox/internal/buildinfo"
+	"github.com/tailedbox/tailedbox/internal/config"
+	"github.com/tailedbox/tailedbox/internal/mesh/control"
+	"github.com/tailedbox/tailedbox/internal/mesh/store"
 	"github.com/tailedbox/tailedbox/internal/ui"
 )
 
@@ -229,6 +232,38 @@ func TestAgentRunWritesHeartbeat(t *testing.T) {
 	if alloc, ok := payload["memory_alloc_bytes"].(float64); !ok || alloc <= 0 {
 		t.Fatalf("expected memory allocation in heartbeat, got %#v", payload["memory_alloc_bytes"])
 	}
+	resolvedPaths, err := config.ResolvePaths(config.LoadOptions{
+		ConfigPath: filepath.Join(dir, "config.json"),
+		StateDir:   filepath.Join(dir, "state"),
+		LogDir:     filepath.Join(dir, "logs"),
+	})
+	if err != nil {
+		t.Fatalf("resolve paths: %v", err)
+	}
+	controlSocket := control.SocketPath(resolvedPaths)
+	socketInfo, err := os.Lstat(controlSocket)
+	if err != nil {
+		t.Fatalf("expected mesh control socket: %v", err)
+	}
+	if socketInfo.Mode()&os.ModeSocket == 0 {
+		t.Fatalf("expected mesh control socket file, got mode %v", socketInfo.Mode())
+	}
+	meshStatusFile := filepath.Join(dir, "state", "mesh", "status.json")
+	if _, err := os.Stat(meshStatusFile); err != nil {
+		t.Fatalf("expected mesh status file: %v", err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "--json", "mesh", "diagnose"), buildinfo.Info{}); err != nil {
+		t.Fatalf("mesh diagnose failed while agent was running: %v\nstderr: %s", err, stderr.String())
+	}
+	var diagnose map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &diagnose); err != nil {
+		t.Fatalf("invalid mesh diagnose json: %v\n%s", err, stdout.String())
+	}
+	if diagnose["agent_control_reachable"] != true {
+		t.Fatalf("expected reachable agent control, got %s", stdout.String())
+	}
 
 	cancel()
 	select {
@@ -238,6 +273,88 @@ func TestAgentRunWritesHeartbeat(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("agent run did not stop after context cancellation")
+	}
+}
+
+func TestMeshStatusBeforeAgentRun(t *testing.T) {
+	paths := testPaths(t)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "worker"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "--json", "mesh", "status"), buildinfo.Info{}); err != nil {
+		t.Fatalf("mesh status failed: %v\nstderr: %s", err, stderr.String())
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("invalid mesh status json: %v\n%s", err, stdout.String())
+	}
+	if payload["enabled"] != false {
+		t.Fatalf("expected disabled mesh by default, got %s", stdout.String())
+	}
+	if payload["state"] != "disabled" {
+		t.Fatalf("expected disabled mesh state, got %s", stdout.String())
+	}
+}
+
+func TestMeshPeersReadsRuntimeStore(t *testing.T) {
+	dir := t.TempDir()
+	paths := testPathsInDir(dir)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "master"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+	resolved, err := config.ResolvePaths(config.LoadOptions{
+		ConfigPath: filepath.Join(dir, "config.json"),
+		StateDir:   filepath.Join(dir, "state"),
+		LogDir:     filepath.Join(dir, "logs"),
+	})
+	if err != nil {
+		t.Fatalf("resolve paths: %v", err)
+	}
+	if _, err := store.WritePeer(resolved, store.PeerObservation{
+		NodeID:              "node_worker",
+		Role:                config.RoleWorker,
+		IdentityFingerprint: "tbx1_worker",
+		LastEndpoint:        "127.0.0.1:41677",
+		LastSeenAt:          time.Date(2026, 6, 3, 12, 0, 0, 0, time.UTC),
+		SessionState:        store.SessionStateConnected,
+	}); err != nil {
+		t.Fatalf("write peer: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "--json", "mesh", "peers"), buildinfo.Info{}); err != nil {
+		t.Fatalf("mesh peers failed: %v\nstderr: %s", err, stderr.String())
+	}
+	var peers []map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &peers); err != nil {
+		t.Fatalf("invalid mesh peers json: %v\n%s", err, stdout.String())
+	}
+	if len(peers) != 1 || peers[0]["node_id"] != "node_worker" {
+		t.Fatalf("unexpected peers: %s", stdout.String())
+	}
+}
+
+func TestMeshPingRequiresRunningAgent(t *testing.T) {
+	paths := testPaths(t)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "worker"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	err := Execute(context.Background(), &stdout, &stderr, append(paths, "mesh", "ping", "node_master"), buildinfo.Info{})
+	if err == nil {
+		t.Fatal("expected mesh ping to require running agent")
+	}
+	if !strings.Contains(err.Error(), "local agent control socket") {
+		t.Fatalf("unexpected mesh ping error: %v", err)
 	}
 }
 
