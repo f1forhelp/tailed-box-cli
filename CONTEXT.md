@@ -626,20 +626,16 @@ tailedbox worker status
 tailedbox master status
 ```
 
-## Commit History Summary
+## Work Completed So Far
 
-Recent commits:
-
-- `95aac59 feat: bootstrap tailedbox CLI skeleton`
-- `18605d8 chore: add VS Code launch configs`
-- `ccdb05b chore: add no-args CLI launch target`
-- `fc20495 style: polish CLI presentation`
-- `d118558 feat: add durable node role initialization`
-- `7d92d49 feat: add join-code enrollment foundation`
-- `bf967a1 feat: add systemd service management for Tailedbox agent`
-
-Current uncommitted work, if present, may include the interactive UI package
-flattening/refactor under `internal/ui`.
+- feat: bootstrap tailedbox CLI skeleton
+- chore: add VS Code launch configs
+- chore: add no-args CLI launch target
+- style: polish CLI presentation
+- feat: add durable node role initialization
+- feat: add join-code enrollment foundation
+- feat: add systemd service management for Tailedbox agent
+- feat: refactor interactive UI into internal/ui package
 
 ## Commit Policy
 
@@ -655,10 +651,9 @@ explicitly asks to commit.
 
 Recommended next implementation order:
 
-1. Commit the `internal/ui` package refactor if approved.
-2. Part 6: Mesh Protocol Design.
-3. Part 7: Mesh MVP Implementation.
-4. Part 2: Versioned GitHub Release Installer.
+1. Part 6: Mesh Protocol Design.
+2. Part 7: Mesh MVP Implementation.
+3. Part 2: Versioned GitHub Release Installer.
 
 Why Part 6 next:
 
