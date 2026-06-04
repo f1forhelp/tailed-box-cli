@@ -9,10 +9,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/tailedbox/secureconn/control"
+	"github.com/tailedbox/secureconn/store"
+	"github.com/tailedbox/secureconn/transport"
 	"github.com/tailedbox/tailedbox/internal/config"
-	"github.com/tailedbox/tailedbox/internal/mesh/control"
-	"github.com/tailedbox/tailedbox/internal/mesh/store"
-	"github.com/tailedbox/tailedbox/internal/mesh/transport"
 )
 
 type MeshConfig struct {
@@ -48,7 +48,8 @@ func Start(ctx context.Context, cfg *config.Config, meshConfig MeshConfig, opts 
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }
 	}
-	listener, controlPath, err := control.Listen(cfg.Paths)
+	meshPaths := securePaths(cfg.Paths)
+	listener, controlPath, err := control.Listen(meshPaths)
 	if err != nil {
 		return nil, err
 	}
@@ -62,10 +63,17 @@ func Start(ctx context.Context, cfg *config.Config, meshConfig MeshConfig, opts 
 		now:         now,
 	}
 	if meshConfig.Enabled {
-		udpTransport, err := transport.Start(ctx, cfg, transport.Options{
-			ListenUDPPort: meshConfig.ListenUDPPort,
-			Logger:        opts.Logger,
-			Now:           opts.Now,
+		localNode, err := localNodeFromConfig(cfg)
+		if err != nil {
+			_ = listener.Close()
+			return nil, err
+		}
+		udpTransport, err := transport.Start(ctx, localNode, transport.Options{
+			ListenUDPPort:  meshConfig.ListenUDPPort,
+			Logger:         opts.Logger,
+			Now:            opts.Now,
+			TrustValidator: tailedboxTrustValidator{cfg: cfg, now: now},
+			PeerObserver:   store.PeerWriter{Paths: meshPaths},
 		})
 		if err != nil {
 			_ = listener.Close()
@@ -111,7 +119,7 @@ func (s *Service) RefreshStatus() error {
 func (s *Service) handle(ctx context.Context, request control.Request) control.Response {
 	switch request.Operation {
 	case control.OperationStatus:
-		status, err := store.ReadStatus(s.cfg.Paths)
+		status, err := store.ReadStatus(securePaths(s.cfg.Paths))
 		if err != nil {
 			return control.ErrorResponse(err)
 		}
@@ -119,7 +127,7 @@ func (s *Service) handle(ctx context.Context, request control.Request) control.R
 		response.Status = &status
 		return response
 	case control.OperationPeers:
-		peers, err := store.ListPeers(s.cfg.Paths)
+		peers, err := store.ListPeers(securePaths(s.cfg.Paths))
 		if err != nil {
 			return control.ErrorResponse(err)
 		}
@@ -194,12 +202,12 @@ func (s *Service) writeStatus() error {
 	if err != nil {
 		return err
 	}
-	_, err = store.WriteStatus(s.cfg.Paths, status)
+	_, err = store.WriteStatus(securePaths(s.cfg.Paths), status)
 	return err
 }
 
 func (s *Service) status() (store.Status, error) {
-	peers, err := store.ListPeers(s.cfg.Paths)
+	peers, err := store.ListPeers(securePaths(s.cfg.Paths))
 	if err != nil {
 		return store.Status{}, err
 	}
@@ -244,7 +252,7 @@ func (s *Service) diagnose(agentReachable bool) (control.DiagnoseResult, error) 
 	if err != nil {
 		return control.DiagnoseResult{}, err
 	}
-	runtimePaths, err := store.ResolvePaths(s.cfg.Paths)
+	runtimePaths, err := store.ResolvePaths(securePaths(s.cfg.Paths))
 	if err != nil {
 		return control.DiagnoseResult{}, err
 	}
@@ -275,7 +283,7 @@ func (s *Service) diagnose(agentReachable bool) (control.DiagnoseResult, error) 
 		BoundEndpoint:         status.BoundEndpoint,
 		PeerCount:             status.PeerCount,
 		EstablishedPeerCount:  status.EstablishedPeerCount,
-		ControlSocket:         control.SocketPath(s.cfg.Paths),
+		ControlSocket:         control.SocketPath(securePaths(s.cfg.Paths)),
 		StatusFile:            runtimePaths.StatusFile,
 		Messages:              messages,
 	}, nil
@@ -288,7 +296,7 @@ func (s *Service) resolvePeerEndpoint(peerNodeID string) (string, error) {
 		}
 		return s.cfg.Cluster.MasterEndpoints[0], nil
 	}
-	peer, err := store.ReadPeer(s.cfg.Paths, peerNodeID)
+	peer, err := store.ReadPeer(securePaths(s.cfg.Paths), peerNodeID)
 	if err == nil && peer.LastEndpoint != "" {
 		return peer.LastEndpoint, nil
 	}

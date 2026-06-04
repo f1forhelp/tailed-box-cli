@@ -30,27 +30,15 @@ Implemented so far:
 - Part 5: lightweight local agent lifecycle with foreground run, heartbeat
   status, memory diagnostics, logs alias, and Linux systemd install/control
   commands.
-- Part 6: mesh protocol design documented in `docs/mesh-protocol-design.md`.
-- Part 7 foundation: internal mesh protocol envelope/control-message types,
-  private mesh runtime store, Ed25519 transcript signing, X25519/HKDF session
-  key derivation, nonce construction, and AES-GCM helpers.
-- Part 7 agent/CLI slice: `agent run` starts a local mesh control socket,
-  writes mesh runtime status, preserves mesh agent config, and enables
-  `tailedbox mesh status`, `peers`, `ping`, and `diagnose` command surfaces
-  backed by the agent socket or private mesh state files.
-- Part 7 session/config slice: `tailedbox mesh enable` and `disable` persist
-  mesh agent config, and `internal/mesh/session` provides replay-window and
-  AEAD packet seal/open helpers bound to the `TBXM` envelope header.
-- Part 7 transport slice: `internal/mesh/transport` provides direct UDP
-  listen/send/receive, enrolled handshake validation, Ed25519 transcript
-  verification, X25519/HKDF session keys, replay protection, and encrypted
-  worker-to-master `tailedbox mesh ping`/pong through the agent control socket.
+- Secure connection work is split into the standalone `secureconn` workspace
+  module. Read `secureconn/CONTEXT.md` for module-specific progress, commands,
+  docs, limitations, and roadmap.
+- `tailedbox mesh enable`, `disable`, `status`, `peers`, `ping`, and
+  `diagnose` are active CLI surfaces for the secure connection runtime.
 
 Not implemented yet:
 
-- Durable multi-peer session lifecycle, rekey loop, master-to-worker routing
-  beyond observed endpoints, and reconnect lease enforcement over live sessions.
-- Network enrollment over `--master-endpoint`.
+- Secure connection module limitations are tracked in `secureconn/CONTEXT.md`.
 - PostgreSQL managed service.
 - Release installer.
 - Web UI.
@@ -62,6 +50,7 @@ Use the pinned module toolchain:
 ```bash
 go version
 go test ./...
+go test ./secureconn/...
 go build ./cmd/tailedbox
 ```
 
@@ -104,6 +93,10 @@ tailedbox debug logs disable
   architecture, decisions, commands, limitations, or roadmap items change. Do
   this as part of the same edit before reporting back; do not wait for a
   separate user reminder.
+- For secure connection module changes, update `secureconn/CONTEXT.md` instead
+  of putting module-specific progress in the root `CONTEXT.md` or this file.
+  The root context should only point to the module context unless primary CLI
+  behavior changes.
 - Prefer standard library code unless a package clearly improves maintainability
   or terminal UX.
 - Preserve JSON output behavior when improving human-readable CLI output.
@@ -158,11 +151,9 @@ permissions, and never logged.
 
 ## Recommended Roadmap
 
-1. Continue Part 7: Tailedbox Mesh MVP Implementation.
+1. Continue secure connection work tracked in `secureconn/CONTEXT.md`.
 2. Part 2: Versioned GitHub Release Installer, once the binary has meaningful
    node behavior to ship.
 
-The next Part 7 slice is durable session lifecycle, rekey handling, broader peer
-routing, reconnect lease enforcement over live sessions, and network enrollment
-over `--master-endpoint`. Do not start PostgreSQL or web UI work before the mesh
-foundation is reliable.
+Do not start PostgreSQL or web UI work before the secure connection foundation
+is reliable.

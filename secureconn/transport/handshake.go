@@ -2,14 +2,13 @@ package transport
 
 import (
 	"crypto/ed25519"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/tailedbox/tailedbox/internal/identity"
-	meshcrypto "github.com/tailedbox/tailedbox/internal/mesh/crypto"
-	"github.com/tailedbox/tailedbox/internal/mesh/protocol"
+	meshcrypto "github.com/tailedbox/secureconn/crypto"
+	"github.com/tailedbox/secureconn/identity"
+	"github.com/tailedbox/secureconn/protocol"
 )
 
 const (
@@ -135,21 +134,5 @@ func buildTranscript(hello clientHello, response serverHello) meshcrypto.Transcr
 }
 
 func publicKeyFromIdentity(publicIdentity identity.PublicIdentity, nodeID, fingerprint string) (ed25519.PublicKey, error) {
-	if publicIdentity.NodeID != nodeID {
-		return nil, fmt.Errorf("public identity belongs to node %s, expected %s", publicIdentity.NodeID, nodeID)
-	}
-	if publicIdentity.Algorithm != identity.AlgorithmEd25519 {
-		return nil, fmt.Errorf("public identity uses unsupported algorithm %q", publicIdentity.Algorithm)
-	}
-	publicKey, err := base64.RawStdEncoding.DecodeString(publicIdentity.PublicKey)
-	if err != nil {
-		return nil, fmt.Errorf("decode public identity key: %w", err)
-	}
-	if len(publicKey) != ed25519.PublicKeySize {
-		return nil, fmt.Errorf("public identity key has %d bytes, expected %d", len(publicKey), ed25519.PublicKeySize)
-	}
-	if got := identity.Fingerprint(ed25519.PublicKey(publicKey)); got != fingerprint || got != publicIdentity.PublicKeyFingerprint {
-		return nil, fmt.Errorf("public identity fingerprint mismatch")
-	}
-	return ed25519.PublicKey(publicKey), nil
+	return identity.PublicKeyFromIdentity(publicIdentity, nodeID, fingerprint)
 }

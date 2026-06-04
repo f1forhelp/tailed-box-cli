@@ -502,16 +502,19 @@ Logging rules:
 
 ## Part 7 Implementation Boundaries
 
-Suggested package layout:
+Current workspace layout:
 
 ```txt
-internal/mesh/
+secureconn/
   protocol/    envelope constants, message structs, encoding
   crypto/      handshake, key derivation, AEAD helpers
   session/     session state, replay windows, rekeying
   transport/   UDP listener, peer send/receive loop
   store/       mesh status and peer observation files
-  service/     agent-facing mesh service
+  control/     local control socket protocol and client/server helpers
+
+internal/mesh/
+  service/     Tailedbox adapter for config, identity, trust, and agent runtime
 ```
 
 Suggested first implementation slice:

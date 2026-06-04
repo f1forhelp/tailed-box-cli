@@ -11,19 +11,16 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/tailedbox/tailedbox/internal/config"
-	"github.com/tailedbox/tailedbox/internal/identity"
-	meshcrypto "github.com/tailedbox/tailedbox/internal/mesh/crypto"
-	"github.com/tailedbox/tailedbox/internal/mesh/protocol"
-	"github.com/tailedbox/tailedbox/internal/mesh/session"
-	"github.com/tailedbox/tailedbox/internal/mesh/store"
-	"github.com/tailedbox/tailedbox/internal/secrets"
+	meshcrypto "github.com/tailedbox/secureconn/crypto"
+	"github.com/tailedbox/secureconn/identity"
+	"github.com/tailedbox/secureconn/protocol"
+	"github.com/tailedbox/secureconn/session"
+	"github.com/tailedbox/secureconn/store"
 )
 
 const (
@@ -33,27 +30,55 @@ const (
 )
 
 type Options struct {
-	ListenHost    string
-	ListenUDPPort int
-	Logger        *slog.Logger
-	Now           func() time.Time
+	ListenHost     string
+	ListenUDPPort  int
+	Logger         *slog.Logger
+	Now            func() time.Time
+	TrustValidator TrustValidator
+	PeerObserver   PeerObserver
+}
+
+type LocalNode struct {
+	NodeID          string
+	Role            string
+	ClusterID       string
+	PublicIdentity  identity.PublicIdentity
+	PrivateIdentity ed25519.PrivateKey
+}
+
+type Peer struct {
+	NodeID              string
+	Role                string
+	ClusterID           string
+	IdentityFingerprint string
+	PublicIdentity      identity.PublicIdentity
+	LastEndpoint        string
+}
+
+type TrustValidator interface {
+	ValidateInitiator(Peer) error
+	ValidateResponder(Peer) error
+}
+
+type PeerObserver interface {
+	ObservePeer(store.PeerObservation) error
 }
 
 type Transport struct {
-	cfg           *config.Config
-	localIdentity identity.PublicIdentity
-	privateKey    ed25519.PrivateKey
-	conn          *net.UDPConn
-	logger        *slog.Logger
-	now           func() time.Time
-	pendingMu     sync.Mutex
-	pending       map[protocol.SessionID]*serverSession
-	activeMu      sync.Mutex
-	active        map[protocol.SessionID]*serverSession
-	closeOnce     sync.Once
-	closed        chan struct{}
-	boundEndpoint string
-	boundUDPPort  int
+	local          LocalNode
+	conn           *net.UDPConn
+	logger         *slog.Logger
+	now            func() time.Time
+	trustValidator TrustValidator
+	peerObserver   PeerObserver
+	pendingMu      sync.Mutex
+	pending        map[protocol.SessionID]*serverSession
+	activeMu       sync.Mutex
+	active         map[protocol.SessionID]*serverSession
+	closeOnce      sync.Once
+	closed         chan struct{}
+	boundEndpoint  string
+	boundUDPPort   int
 }
 
 type serverSession struct {
@@ -68,40 +93,22 @@ type serverSession struct {
 	established time.Time
 }
 
-type trustedNodeRecord struct {
-	NodeID                  string    `json:"node_id"`
-	Role                    string    `json:"role"`
-	IdentityFingerprint     string    `json:"identity_fingerprint"`
-	PublicKey               string    `json:"public_key"`
-	ClusterID               string    `json:"cluster_id"`
-	TrustState              string    `json:"trust_state"`
-	ReconnectLeaseExpiresAt time.Time `json:"reconnect_lease_expires_at"`
-}
-
-type joinedClusterRecord struct {
-	ClusterID                 string `json:"cluster_id"`
-	MasterNodeID              string `json:"master_node_id"`
-	MasterIdentityFingerprint string `json:"master_identity_fingerprint"`
-}
-
-func Start(ctx context.Context, cfg *config.Config, opts Options) (*Transport, error) {
-	if cfg == nil {
-		return nil, errors.New("config is nil")
-	}
-	if cfg.Node.ID == "" || cfg.Node.Role == "" {
+func Start(ctx context.Context, local LocalNode, opts Options) (*Transport, error) {
+	if local.NodeID == "" || local.Role == "" || local.ClusterID == "" {
 		return nil, errors.New("node must be initialized before starting mesh transport")
+	}
+	if local.PublicIdentity.NodeID != local.NodeID || local.PublicIdentity.PublicKeyFingerprint == "" {
+		return nil, errors.New("local public identity does not match local node")
+	}
+	if len(local.PrivateIdentity) != ed25519.PrivateKeySize {
+		return nil, errors.New("local private identity key is required")
+	}
+	if opts.TrustValidator == nil {
+		return nil, errors.New("mesh trust validator is required")
 	}
 	now := opts.Now
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }
-	}
-	privateKey, _, err := identity.LoadPrivateKey(cfg.Paths.IdentityPrivateKeyFile)
-	if err != nil {
-		return nil, fmt.Errorf("load local mesh identity private key: %w", err)
-	}
-	localIdentity, err := identity.LoadPublicIdentity(cfg.Paths.IdentityPublicKeyFile)
-	if err != nil {
-		return nil, fmt.Errorf("load local mesh public identity: %w", err)
 	}
 	listenHost := opts.ListenHost
 	if listenHost == "" {
@@ -116,15 +123,15 @@ func Start(ctx context.Context, cfg *config.Config, opts Options) (*Transport, e
 		return nil, fmt.Errorf("listen on mesh UDP socket: %w", err)
 	}
 	transport := &Transport{
-		cfg:           cfg,
-		localIdentity: localIdentity,
-		privateKey:    privateKey,
-		conn:          conn,
-		logger:        opts.Logger,
-		now:           now,
-		pending:       make(map[protocol.SessionID]*serverSession),
-		active:        make(map[protocol.SessionID]*serverSession),
-		closed:        make(chan struct{}),
+		local:          local,
+		conn:           conn,
+		logger:         opts.Logger,
+		now:            now,
+		trustValidator: opts.TrustValidator,
+		peerObserver:   opts.PeerObserver,
+		pending:        make(map[protocol.SessionID]*serverSession),
+		active:         make(map[protocol.SessionID]*serverSession),
+		closed:         make(chan struct{}),
 	}
 	transport.boundEndpoint = conn.LocalAddr().String()
 	if udpAddr, ok := conn.LocalAddr().(*net.UDPAddr); ok {
@@ -197,11 +204,11 @@ func (t *Transport) Ping(ctx context.Context, peerNodeID, endpoint string) (time
 	hello := clientHello{
 		Version:              handshakeVersion,
 		Mode:                 modeEnrolled,
-		ClusterID:            t.cfg.Cluster.ID,
-		NodeID:               t.cfg.Node.ID,
-		Role:                 t.cfg.Node.Role,
-		IdentityFingerprint:  t.localIdentity.PublicKeyFingerprint,
-		PublicIdentity:       t.localIdentity,
+		ClusterID:            t.local.ClusterID,
+		NodeID:               t.local.NodeID,
+		Role:                 t.local.Role,
+		IdentityFingerprint:  t.local.PublicIdentity.PublicKeyFingerprint,
+		PublicIdentity:       t.local.PublicIdentity,
 		EphemeralPublic:      initiatorPublic,
 		Nonce:                nonce,
 		SentAt:               now,
@@ -254,7 +261,7 @@ func (t *Transport) Ping(ctx context.Context, peerNodeID, endpoint string) (time
 	if err != nil {
 		return 0, err
 	}
-	signature, err := meshcrypto.SignTranscript(t.privateKey, transcript)
+	signature, err := meshcrypto.SignTranscript(t.local.PrivateIdentity, transcript)
 	if err != nil {
 		return 0, err
 	}
@@ -301,7 +308,7 @@ func (t *Transport) Ping(ctx context.Context, peerNodeID, endpoint string) (time
 	pingMessage, err := protocol.EncodeControlMessage(protocol.ControlMessage{
 		Type:       protocol.MessageTypePing,
 		ID:         messageID,
-		NodeID:     t.cfg.Node.ID,
+		NodeID:     t.local.NodeID,
 		PeerNodeID: peerNodeID,
 		SentAt:     t.now(),
 	})
@@ -411,10 +418,10 @@ func (t *Transport) handleClientHello(packet protocol.Packet, addr *net.UDPAddr)
 		Version:             handshakeVersion,
 		Mode:                modeEnrolled,
 		ClusterID:           hello.ClusterID,
-		NodeID:              t.cfg.Node.ID,
-		Role:                t.cfg.Node.Role,
-		IdentityFingerprint: t.localIdentity.PublicKeyFingerprint,
-		PublicIdentity:      t.localIdentity,
+		NodeID:              t.local.NodeID,
+		Role:                t.local.Role,
+		IdentityFingerprint: t.local.PublicIdentity.PublicKeyFingerprint,
+		PublicIdentity:      t.local.PublicIdentity,
 		EphemeralPublic:     responderPublic,
 		Nonce:               nonce,
 		SentAt:              t.now(),
@@ -422,7 +429,7 @@ func (t *Transport) handleClientHello(packet protocol.Packet, addr *net.UDPAddr)
 		SessionID:           sessionID,
 	}
 	transcript := buildTranscript(hello, response)
-	signature, err := meshcrypto.SignTranscript(t.privateKey, transcript)
+	signature, err := meshcrypto.SignTranscript(t.local.PrivateIdentity, transcript)
 	if err != nil {
 		return err
 	}
@@ -486,7 +493,7 @@ func (t *Transport) handleClientAuth(packet protocol.Packet, addr *net.UDPAddr) 
 	ack, err := protocol.EncodeControlMessage(protocol.ControlMessage{
 		Type:       protocol.MessageTypeStatusResponse,
 		ID:         "session_established",
-		NodeID:     t.cfg.Node.ID,
+		NodeID:     t.local.NodeID,
 		PeerNodeID: pending.hello.NodeID,
 		SentAt:     t.now(),
 	})
@@ -519,7 +526,7 @@ func (t *Transport) handleEncryptedData(packet protocol.Packet, addr *net.UDPAdd
 	pong, err := protocol.EncodeControlMessage(protocol.ControlMessage{
 		Type:       protocol.MessageTypePong,
 		ID:         message.ID,
-		NodeID:     t.cfg.Node.ID,
+		NodeID:     t.local.NodeID,
 		PeerNodeID: message.NodeID,
 		SentAt:     t.now(),
 	})
@@ -536,65 +543,29 @@ func (t *Transport) handleEncryptedData(packet protocol.Packet, addr *net.UDPAdd
 }
 
 func (t *Transport) validateInitiatorTrust(hello clientHello) error {
-	if hello.ClusterID != t.cfg.Cluster.ID {
-		return fmt.Errorf("client hello cluster %s does not match local cluster %s", hello.ClusterID, t.cfg.Cluster.ID)
+	if hello.ClusterID != t.local.ClusterID {
+		return fmt.Errorf("client hello cluster %s does not match local cluster %s", hello.ClusterID, t.local.ClusterID)
 	}
-	switch t.cfg.Node.Role {
-	case config.RoleMaster:
-		trusted, err := readTrustedNode(t.cfg, hello.NodeID)
-		if err != nil {
-			return fmt.Errorf("mesh peer is not trusted: %w", err)
-		}
-		if trusted.TrustState != "trusted" {
-			return fmt.Errorf("mesh peer %s is not trusted", hello.NodeID)
-		}
-		if trusted.Role != hello.Role || trusted.ClusterID != hello.ClusterID || trusted.IdentityFingerprint != hello.IdentityFingerprint || trusted.PublicKey != hello.PublicIdentity.PublicKey {
-			return errors.New("mesh peer identity does not match trusted-node record")
-		}
-		if !trusted.ReconnectLeaseExpiresAt.IsZero() && !t.now().Before(trusted.ReconnectLeaseExpiresAt) {
-			return fmt.Errorf("mesh peer reconnect lease has expired")
-		}
-		return nil
-	case config.RoleWorker:
-		joined, err := readJoinedCluster(t.cfg)
-		if err != nil {
-			return err
-		}
-		if hello.NodeID != joined.MasterNodeID || hello.IdentityFingerprint != joined.MasterIdentityFingerprint || hello.ClusterID != joined.ClusterID || hello.Role != config.RoleMaster {
-			return errors.New("mesh initiator does not match pinned master identity")
-		}
-		return nil
-	default:
-		return fmt.Errorf("unsupported local mesh role %q", t.cfg.Node.Role)
-	}
+	return t.trustValidator.ValidateInitiator(Peer{
+		NodeID:              hello.NodeID,
+		Role:                hello.Role,
+		ClusterID:           hello.ClusterID,
+		IdentityFingerprint: hello.IdentityFingerprint,
+		PublicIdentity:      hello.PublicIdentity,
+	})
 }
 
 func (t *Transport) validateResponderTrust(response serverHello) error {
-	if response.ClusterID != t.cfg.Cluster.ID {
-		return fmt.Errorf("server hello cluster %s does not match local cluster %s", response.ClusterID, t.cfg.Cluster.ID)
+	if response.ClusterID != t.local.ClusterID {
+		return fmt.Errorf("server hello cluster %s does not match local cluster %s", response.ClusterID, t.local.ClusterID)
 	}
-	switch t.cfg.Node.Role {
-	case config.RoleWorker:
-		joined, err := readJoinedCluster(t.cfg)
-		if err != nil {
-			return err
-		}
-		if response.NodeID != joined.MasterNodeID || response.IdentityFingerprint != joined.MasterIdentityFingerprint || response.Role != config.RoleMaster {
-			return errors.New("server hello does not match pinned master identity")
-		}
-		return nil
-	case config.RoleMaster:
-		trusted, err := readTrustedNode(t.cfg, response.NodeID)
-		if err != nil {
-			return err
-		}
-		if trusted.Role != response.Role || trusted.IdentityFingerprint != response.IdentityFingerprint || trusted.PublicKey != response.PublicIdentity.PublicKey {
-			return errors.New("server hello does not match trusted-node record")
-		}
-		return nil
-	default:
-		return fmt.Errorf("unsupported local mesh role %q", t.cfg.Node.Role)
-	}
+	return t.trustValidator.ValidateResponder(Peer{
+		NodeID:              response.NodeID,
+		Role:                response.Role,
+		ClusterID:           response.ClusterID,
+		IdentityFingerprint: response.IdentityFingerprint,
+		PublicIdentity:      response.PublicIdentity,
+	})
 }
 
 func (t *Transport) writePacket(conn *net.UDPConn, addr *net.UDPAddr, packet protocol.Packet) error {
@@ -621,7 +592,10 @@ func (t *Transport) activeSession(sessionID protocol.SessionID) *serverSession {
 }
 
 func (t *Transport) writePeer(nodeID, role, fingerprint, endpoint, sessionState string) error {
-	_, err := store.WritePeer(t.cfg.Paths, store.PeerObservation{
+	if t.peerObserver == nil {
+		return nil
+	}
+	return t.peerObserver.ObservePeer(store.PeerObservation{
 		NodeID:              nodeID,
 		Role:                role,
 		IdentityFingerprint: fingerprint,
@@ -629,7 +603,6 @@ func (t *Transport) writePeer(nodeID, role, fingerprint, endpoint, sessionState 
 		LastSeenAt:          t.now(),
 		SessionState:        sessionState,
 	})
-	return err
 }
 
 func readPacket(ctx context.Context, conn *net.UDPConn) (protocol.Packet, error) {
@@ -709,23 +682,4 @@ func (t *Transport) debug(message string, args ...any) {
 	if t != nil && t.logger != nil {
 		t.logger.Debug(message, args...)
 	}
-}
-
-func readTrustedNode(cfg *config.Config, nodeID string) (trustedNodeRecord, error) {
-	if nodeID == "" || nodeID == "." || nodeID == ".." || strings.ContainsAny(nodeID, `/\`) {
-		return trustedNodeRecord{}, fmt.Errorf("invalid trusted node id %q", nodeID)
-	}
-	var record trustedNodeRecord
-	if err := secrets.ReadJSON(filepath.Join(cfg.Paths.TrustedNodesDir, nodeID+".json"), &record); err != nil {
-		return trustedNodeRecord{}, err
-	}
-	return record, nil
-}
-
-func readJoinedCluster(cfg *config.Config) (joinedClusterRecord, error) {
-	var record joinedClusterRecord
-	if err := secrets.ReadJSON(cfg.Paths.JoinedClusterFile, &record); err != nil {
-		return joinedClusterRecord{}, err
-	}
-	return record, nil
 }

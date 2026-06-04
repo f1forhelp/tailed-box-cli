@@ -6,9 +6,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/tailedbox/tailedbox/internal/config"
-	"github.com/tailedbox/tailedbox/internal/secrets"
 )
 
 func TestWriteStatusUsesPrivateMeshState(t *testing.T) {
@@ -17,7 +14,7 @@ func TestWriteStatusUsesPrivateMeshState(t *testing.T) {
 
 	changed, err := WriteStatus(paths, Status{
 		NodeID:        "node_master",
-		Role:          config.RoleMaster,
+		Role:          "master",
 		Enabled:       true,
 		State:         StateListening,
 		Health:        HealthHealthy,
@@ -36,9 +33,9 @@ func TestWriteStatusUsesPrivateMeshState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve mesh paths: %v", err)
 	}
-	assertMode(t, runtimePaths.MeshDir, secrets.PrivateDirMode)
-	assertMode(t, runtimePaths.PeersDir, secrets.PrivateDirMode)
-	assertMode(t, runtimePaths.StatusFile, secrets.PrivateFileMode)
+	assertMode(t, runtimePaths.MeshDir, 0o700)
+	assertMode(t, runtimePaths.PeersDir, 0o700)
+	assertMode(t, runtimePaths.StatusFile, 0o600)
 
 	status, err := ReadStatus(paths)
 	if err != nil {
@@ -58,7 +55,7 @@ func TestWritePeerListsSortedPrivatePeerFiles(t *testing.T) {
 	for _, peer := range []PeerObservation{
 		{
 			NodeID:              "node_z",
-			Role:                config.RoleWorker,
+			Role:                "worker",
 			IdentityFingerprint: "tbx1_z",
 			LastEndpoint:        "203.0.113.10:41677",
 			LastSeenAt:          now,
@@ -66,7 +63,7 @@ func TestWritePeerListsSortedPrivatePeerFiles(t *testing.T) {
 		},
 		{
 			NodeID:              "node_a",
-			Role:                config.RoleWorker,
+			Role:                "worker",
 			IdentityFingerprint: "tbx1_a",
 			LastEndpoint:        "203.0.113.11:41677",
 			LastSeenAt:          now,
@@ -82,8 +79,8 @@ func TestWritePeerListsSortedPrivatePeerFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve mesh paths: %v", err)
 	}
-	assertMode(t, filepath.Join(runtimePaths.PeersDir, "node_a.json"), secrets.PrivateFileMode)
-	assertMode(t, filepath.Join(runtimePaths.PeersDir, "node_z.json"), secrets.PrivateFileMode)
+	assertMode(t, filepath.Join(runtimePaths.PeersDir, "node_a.json"), 0o600)
+	assertMode(t, filepath.Join(runtimePaths.PeersDir, "node_z.json"), 0o600)
 
 	peers, err := ListPeers(paths)
 	if err != nil {
@@ -112,18 +109,9 @@ func TestWritePeerRejectsPathTraversalNodeID(t *testing.T) {
 	}
 }
 
-func testPaths(t *testing.T) config.Paths {
+func testPaths(t *testing.T) Paths {
 	t.Helper()
-	root := t.TempDir()
-	paths, err := config.ResolvePaths(config.LoadOptions{
-		ConfigPath: filepath.Join(root, "config.json"),
-		StateDir:   filepath.Join(root, "state"),
-		LogDir:     filepath.Join(root, "logs"),
-	})
-	if err != nil {
-		t.Fatalf("resolve paths: %v", err)
-	}
-	return paths
+	return Paths{StateDir: filepath.Join(t.TempDir(), "state")}
 }
 
 func assertMode(t *testing.T, path string, want os.FileMode) {

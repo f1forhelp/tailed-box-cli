@@ -9,8 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tailedbox/tailedbox/internal/config"
-	"github.com/tailedbox/tailedbox/internal/secrets"
+	"github.com/tailedbox/secureconn/internal/private"
 )
 
 const (
@@ -34,6 +33,11 @@ type RuntimePaths struct {
 	MeshDir    string
 	PeersDir   string
 	StatusFile string
+}
+
+type Paths struct {
+	StateDir string
+	AgentDir string
 }
 
 type Status struct {
@@ -62,7 +66,7 @@ type PeerObservation struct {
 	SessionState        string    `json:"session_state"`
 }
 
-func ResolvePaths(paths config.Paths) (RuntimePaths, error) {
+func ResolvePaths(paths Paths) (RuntimePaths, error) {
 	if paths.StateDir == "" {
 		return RuntimePaths{}, errors.New("state directory is required for mesh store")
 	}
@@ -74,20 +78,20 @@ func ResolvePaths(paths config.Paths) (RuntimePaths, error) {
 	}, nil
 }
 
-func EnsureDirs(paths config.Paths) (RuntimePaths, error) {
+func EnsureDirs(paths Paths) (RuntimePaths, error) {
 	runtimePaths, err := ResolvePaths(paths)
 	if err != nil {
 		return RuntimePaths{}, err
 	}
 	for _, dir := range []string{runtimePaths.MeshDir, runtimePaths.PeersDir} {
-		if err := secrets.EnsurePrivateDir(dir); err != nil {
+		if err := private.EnsureDir(dir); err != nil {
 			return RuntimePaths{}, err
 		}
 	}
 	return runtimePaths, nil
 }
 
-func WriteStatus(paths config.Paths, status Status) (bool, error) {
+func WriteStatus(paths Paths, status Status) (bool, error) {
 	runtimePaths, err := EnsureDirs(paths)
 	if err != nil {
 		return false, err
@@ -95,22 +99,22 @@ func WriteStatus(paths config.Paths, status Status) (bool, error) {
 	if status.Version == 0 {
 		status.Version = 1
 	}
-	return secrets.WriteJSONAtomic(runtimePaths.StatusFile, status)
+	return private.WriteJSONAtomic(runtimePaths.StatusFile, status)
 }
 
-func ReadStatus(paths config.Paths) (Status, error) {
+func ReadStatus(paths Paths) (Status, error) {
 	runtimePaths, err := ResolvePaths(paths)
 	if err != nil {
 		return Status{}, err
 	}
 	var status Status
-	if err := secrets.ReadJSON(runtimePaths.StatusFile, &status); err != nil {
+	if err := private.ReadJSON(runtimePaths.StatusFile, &status); err != nil {
 		return Status{}, err
 	}
 	return status, nil
 }
 
-func WritePeer(paths config.Paths, peer PeerObservation) (bool, error) {
+func WritePeer(paths Paths, peer PeerObservation) (bool, error) {
 	if err := validateNodeID(peer.NodeID); err != nil {
 		return false, err
 	}
@@ -121,10 +125,10 @@ func WritePeer(paths config.Paths, peer PeerObservation) (bool, error) {
 	if peer.Version == 0 {
 		peer.Version = 1
 	}
-	return secrets.WriteJSONAtomic(peerPath(runtimePaths, peer.NodeID), peer)
+	return private.WriteJSONAtomic(peerPath(runtimePaths, peer.NodeID), peer)
 }
 
-func ReadPeer(paths config.Paths, nodeID string) (PeerObservation, error) {
+func ReadPeer(paths Paths, nodeID string) (PeerObservation, error) {
 	if err := validateNodeID(nodeID); err != nil {
 		return PeerObservation{}, err
 	}
@@ -133,13 +137,13 @@ func ReadPeer(paths config.Paths, nodeID string) (PeerObservation, error) {
 		return PeerObservation{}, err
 	}
 	var peer PeerObservation
-	if err := secrets.ReadJSON(peerPath(runtimePaths, nodeID), &peer); err != nil {
+	if err := private.ReadJSON(peerPath(runtimePaths, nodeID), &peer); err != nil {
 		return PeerObservation{}, err
 	}
 	return peer, nil
 }
 
-func ListPeers(paths config.Paths) ([]PeerObservation, error) {
+func ListPeers(paths Paths) ([]PeerObservation, error) {
 	runtimePaths, err := ResolvePaths(paths)
 	if err != nil {
 		return nil, err
@@ -157,7 +161,7 @@ func ListPeers(paths config.Paths) ([]PeerObservation, error) {
 			continue
 		}
 		var peer PeerObservation
-		if err := secrets.ReadJSON(filepath.Join(runtimePaths.PeersDir, entry.Name()), &peer); err != nil {
+		if err := private.ReadJSON(filepath.Join(runtimePaths.PeersDir, entry.Name()), &peer); err != nil {
 			return nil, err
 		}
 		peers = append(peers, peer)
@@ -180,4 +184,13 @@ func validateNodeID(nodeID string) error {
 		return fmt.Errorf("invalid mesh peer node id %q", nodeID)
 	}
 	return nil
+}
+
+type PeerWriter struct {
+	Paths Paths
+}
+
+func (w PeerWriter) ObservePeer(peer PeerObservation) error {
+	_, err := WritePeer(w.Paths, peer)
+	return err
 }

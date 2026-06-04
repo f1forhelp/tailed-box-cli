@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tailedbox/secureconn/control"
+	"github.com/tailedbox/secureconn/store"
 	"github.com/tailedbox/tailedbox/internal/buildinfo"
 	"github.com/tailedbox/tailedbox/internal/config"
-	"github.com/tailedbox/tailedbox/internal/mesh/control"
-	"github.com/tailedbox/tailedbox/internal/mesh/store"
 	"github.com/tailedbox/tailedbox/internal/ui"
 )
 
@@ -242,7 +242,7 @@ func TestAgentRunWritesHeartbeat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve paths: %v", err)
 	}
-	controlSocket := control.SocketPath(resolvedPaths)
+	controlSocket := control.SocketPath(store.Paths{StateDir: resolvedPaths.StateDir, AgentDir: resolvedPaths.AgentDir})
 	socketInfo, err := os.Lstat(controlSocket)
 	if err != nil {
 		t.Fatalf("expected mesh control socket: %v", err)
@@ -373,7 +373,7 @@ func TestMeshPeersReadsRuntimeStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve paths: %v", err)
 	}
-	if _, err := store.WritePeer(resolved, store.PeerObservation{
+	if _, err := store.WritePeer(store.Paths{StateDir: resolved.StateDir, AgentDir: resolved.AgentDir}, store.PeerObservation{
 		NodeID:              "node_worker",
 		Role:                config.RoleWorker,
 		IdentityFingerprint: "tbx1_worker",

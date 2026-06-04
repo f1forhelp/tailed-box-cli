@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	meshcrypto "github.com/tailedbox/tailedbox/internal/mesh/crypto"
-	"github.com/tailedbox/tailedbox/internal/mesh/protocol"
+	meshcrypto "github.com/tailedbox/secureconn/crypto"
+	"github.com/tailedbox/secureconn/protocol"
 )
 
 const DefaultReplayWindowSize uint64 = 1024

@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tailedbox/secureconn/control"
+	"github.com/tailedbox/secureconn/store"
 	"github.com/tailedbox/tailedbox/internal/agent"
 	"github.com/tailedbox/tailedbox/internal/config"
-	"github.com/tailedbox/tailedbox/internal/mesh/control"
-	"github.com/tailedbox/tailedbox/internal/mesh/store"
 )
 
 func meshCommand() *command {
@@ -239,7 +239,7 @@ func meshStatus(ctx context.Context, a *app) (store.Status, bool, error) {
 	if err == nil && response.OK && response.Status != nil {
 		return *response.Status, true, nil
 	}
-	status, readErr := store.ReadStatus(a.cfg.Paths)
+	status, readErr := store.ReadStatus(meshRuntimePaths(a.cfg))
 	if readErr == nil {
 		status.Message = appendMessage(status.Message, "local agent control socket is not reachable; showing stored mesh status")
 		return status, false, nil
@@ -255,7 +255,7 @@ func meshPeers(ctx context.Context, a *app) ([]store.PeerObservation, bool, erro
 	if err == nil && response.OK {
 		return response.Peers, true, nil
 	}
-	peers, readErr := store.ListPeers(a.cfg.Paths)
+	peers, readErr := store.ListPeers(meshRuntimePaths(a.cfg))
 	if readErr != nil {
 		return nil, false, readErr
 	}
@@ -273,7 +273,7 @@ func meshDiagnose(ctx context.Context, a *app) (control.DiagnoseResult, error) {
 func meshControl(ctx context.Context, a *app, request control.Request) (control.Response, error) {
 	controlCtx, cancel := context.WithTimeout(ctx, control.DefaultTimeout)
 	defer cancel()
-	return control.RoundTrip(controlCtx, a.cfg.Paths, request)
+	return control.RoundTrip(controlCtx, meshRuntimePaths(a.cfg), request)
 }
 
 func defaultMeshStatus(cfg *config.Config, message string) store.Status {
@@ -308,7 +308,7 @@ func localMeshDiagnose(a *app) (control.DiagnoseResult, error) {
 	if err != nil {
 		return control.DiagnoseResult{}, err
 	}
-	runtimePaths, err := store.ResolvePaths(a.cfg.Paths)
+	runtimePaths, err := store.ResolvePaths(meshRuntimePaths(a.cfg))
 	if err != nil {
 		return control.DiagnoseResult{}, err
 	}
@@ -317,7 +317,7 @@ func localMeshDiagnose(a *app) (control.DiagnoseResult, error) {
 		messages = append(messages, status.Message)
 	}
 	if status.Enabled {
-		messages = append(messages, "UDP mesh transport is not implemented in this Part 7 slice")
+		messages = append(messages, "local agent control socket is not reachable; UDP mesh transport state cannot be checked live")
 	} else {
 		messages = append(messages, "mesh is disabled in the agent config")
 	}
@@ -337,7 +337,7 @@ func localMeshDiagnose(a *app) (control.DiagnoseResult, error) {
 		BoundEndpoint:         status.BoundEndpoint,
 		PeerCount:             status.PeerCount,
 		EstablishedPeerCount:  status.EstablishedPeerCount,
-		ControlSocket:         control.SocketPath(a.cfg.Paths),
+		ControlSocket:         control.SocketPath(meshRuntimePaths(a.cfg)),
 		StatusFile:            runtimePaths.StatusFile,
 		Messages:              messages,
 	}, nil
@@ -348,6 +348,13 @@ func appendMessage(existing, message string) string {
 		return message
 	}
 	return existing + "; " + message
+}
+
+func meshRuntimePaths(cfg *config.Config) store.Paths {
+	return store.Paths{
+		StateDir: cfg.Paths.StateDir,
+		AgentDir: cfg.Paths.AgentDir,
+	}
 }
 
 func normalizeEndpoint(endpoint string) (string, error) {

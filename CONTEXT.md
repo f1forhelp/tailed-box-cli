@@ -237,11 +237,10 @@ Current enrollment limitation:
 
 - The join flow is a local-state POC.
 - `--master-state-dir` is a temporary transport stand-in.
-- Real network enrollment must be implemented after the daemon and mesh/control
-  transport exist.
+- Real network enrollment is tracked by the secure connection module context.
 
-This is intentional. It avoids pretending secure network transport exists before
-the mesh parts are built.
+This is intentional. It avoids pretending network enrollment is complete before
+the secure connection foundation is ready.
 
 ### Part 5: Local Agent Daemon and Systemd Integration
 
@@ -303,100 +302,30 @@ tailedbox agent logs
 
 Current agent limitations:
 
-- The agent does not yet start the designed mesh service or open mesh sockets.
-- The agent does not yet expose a local API.
+- Secure connection runtime details are tracked in `secureconn/CONTEXT.md`.
 - Systemd install requires normal OS permissions, usually root.
 - Service control commands call `systemctl` and therefore work only on Linux
   systems with systemd.
 
-### Part 6: Tailedbox Mesh Protocol Design
+### Secure Connection Module Context
 
-Implemented:
+The secure connection protocol, implementation status, tests, limitations,
+module-specific commands, and roadmap live in `secureconn/CONTEXT.md`.
 
-- Protocol design document at `docs/mesh-protocol-design.md`.
-- Mesh threat model covering passive observers, active network attackers,
-  untrusted nodes, expired reconnect leases, and accidental public exposure.
-- Trust model based on existing Ed25519 node identity, master trusted-node
-  records, worker joined-cluster pinning, and reconnect lease metadata.
-- Handshake design using Ed25519 identity signatures, ephemeral X25519 key
-  exchange, HKDF-SHA256 key derivation, and AES-256-GCM payload encryption.
-- Versioned UDP packet envelope for handshake, encrypted data, rekey, and close
-  packets.
-- Network enrollment design that replaces the temporary local
-  `--master-state-dir` transport with a future `--master-endpoint` flow while
-  keeping raw join-code secrets encrypted on the wire and never persisted.
-- Peer discovery design based on explicit master endpoints, authenticated
-  learned peer endpoints, and private mesh runtime state.
-- Direct UDP MVP model with future relay fallback constraints.
-- Firewall posture for mesh/control traffic: masters expose only the configured
-  mesh UDP port, workers can remain outbound-only for the MVP, and local agent
-  control remains local-only.
-- Part 7 implementation boundaries for `internal/mesh`, agent integration,
-  `tailedbox mesh status`, `peers`, `ping`, and `diagnose`.
+Root Tailedbox context should only track primary CLI/application behavior and
+the fact that the app integrates the secure connection module through
+`internal/mesh/service`. When secure connection module internals change, update
+`secureconn/CONTEXT.md` instead of duplicating those details here.
 
-### Part 7: Tailedbox Mesh MVP Implementation Foundation
+Current root integration notes:
 
-Implemented:
-
-- `internal/mesh/protocol` with the versioned `TBXM` UDP packet envelope,
-  packet types for hello/auth/data/rekey/close, strict decode validation, and
-  JSON control-message types for ping, pong, peer updates, status, diagnostics,
-  and network enrollment messages.
-- `internal/mesh/store` with private mesh runtime paths under
-  `<state-dir>/mesh`, mesh status JSON, peer observation JSON files, sorted peer
-  listing, and path-traversal rejection for peer node IDs.
-- `internal/mesh/crypto` with Ed25519 transcript signing/verification, X25519
-  ephemeral key generation, HKDF-SHA256 session key derivation, AES-256-GCM
-  construction, and 96-bit nonce construction from a direction-specific prefix
-  plus packet sequence.
-- `internal/mesh/session` with replay-window tracking, directional packet
-  sender/receiver helpers, AEAD packet seal/open, sequence allocation, and
-  associated-data binding to the `TBXM` envelope header.
-- `internal/mesh/transport` with direct UDP listen/send/receive, enrolled
-  client/server handshake payloads, Ed25519 transcript signatures, X25519/HKDF
-  session keys, replay protection, trust validation from local trusted-node and
-  joined-cluster JSON state, encrypted client auth, encrypted ping/pong control
-  messages, and peer observation writes.
-- Focused tests for packet encode/decode, malformed envelope rejection, control
-  message shape, strict mesh store permissions, peer listing, transcript
-  tamper detection, matching X25519/HKDF derivation on both sides, and AEAD
-  associated-data enforcement, replay rejection, duplicate packet rejection,
-  stale packet rejection, packet-header tamper rejection, and real loopback UDP
-  ping/pong between a locally enrolled worker and master.
-- `internal/mesh/control` with a local JSON request/response control socket for
-  mesh status, peer listing, ping dispatch, and diagnostics. The default path is
-  `<state-dir>/agent/control.sock`; long Unix socket paths fall back to a
-  deterministic private temp path and diagnostics report the actual socket path.
-- `internal/mesh/service` with an agent-owned mesh service scaffold that writes
-  mesh runtime status, serves the local control socket, reports disabled mesh as
-  healthy, and reports enabled mesh as degraded until UDP transport is wired.
-- `tailedbox agent run` starts the mesh service scaffold alongside heartbeat
-  status, refreshes `<state-dir>/mesh/status.json`, and preserves existing mesh
-  agent config when ensuring `agent/config.json`.
-- `tailedbox mesh status`, `tailedbox mesh peers`, and
-  `tailedbox mesh diagnose` are active commands backed by the running agent when
-  reachable, with private state-file fallback when the agent is offline.
-- `tailedbox mesh ping <node-id>` is active as a local-agent dispatch command;
-  it requires a running agent and can exchange encrypted UDP ping/pong with a
-  trusted master when the worker has a configured master endpoint.
-- `tailedbox mesh enable [--listen-udp-port <port>]` and
-  `tailedbox mesh disable` persist the mesh agent config without changing node
-  identity or enrollment state. Masters default to UDP port `41677`; workers
-  default to an ephemeral port until configured otherwise.
-- `tailedbox mesh enable --master-endpoint <host:port>` stores a master UDP
-  endpoint in worker cluster config for direct mesh ping.
-
-Current Part 7 limitations:
-
-- The mesh transport supports direct enrolled ping/pong, but it does not yet
-  maintain durable multi-peer sessions, rekey active sessions, or retry with
-  backoff.
-- Master-to-worker ping depends on an observed worker endpoint from prior worker
-  traffic; production NAT traversal and relay fallback are not implemented.
-- Reconnect lease enforcement exists during new master-side handshakes, but
-  active-session closure on lease expiry and rekey failure is not implemented.
-- Network enrollment still uses local `--master-state-dir`; the designed
-  `--master-endpoint` flow is not implemented yet.
+- `go.work` includes the root CLI module and `./secureconn`.
+- The root module requires `github.com/tailedbox/secureconn v0.0.0` and uses a
+  local `replace` to keep root-only commands working offline.
+- `tailedbox agent run` starts the app adapter that owns the local control
+  socket lifecycle and runtime status integration.
+- `tailedbox mesh enable`, `disable`, `status`, `peers`, `ping`, and `diagnose`
+  are the app-level CLI surfaces for the secure connection runtime.
 
 ## Current Commands
 
@@ -629,15 +558,10 @@ Not done:
 - optional signature verification
 - self-update design
 
-### Part 7: Tailedbox Mesh MVP Implementation
+### Secure Connection Module
 
-Not done:
-
-- durable multi-peer session lifecycle
-- master-to-worker routing without relying only on observed endpoints
-- session key rotation
-- reconnect lease enforcement over network
-- network enrollment over `--master-endpoint`
+Module-specific limitations and next steps are tracked in
+`secureconn/CONTEXT.md`.
 
 ### Security Hardening
 
@@ -681,14 +605,10 @@ Not done:
 
 ## Known Current Limitations
 
-- Direct encrypted UDP worker-to-master ping/pong works after local enrollment,
-  `tailedbox mesh enable` on both nodes, and a worker `--master-endpoint`.
-- Mesh sessions are currently short-lived around ping flows rather than a
-  durable multi-peer session manager with rekey and backoff.
-- Master-to-worker ping requires a recently observed worker endpoint.
+- Secure connection module limitations live in `secureconn/CONTEXT.md`.
 - Join-code enrollment is local-state backed.
-- `connected_to_master_cluster`, `authenticated`, and `mesh_reachable` are still
-  false because mesh sessions do not exist.
+- Some status fields remain placeholders until primary app status consumes
+  secure connection runtime state.
 - Master status knows trusted nodes from local files only.
 - Worker status intentionally does not expose full cluster inventory.
 - No firewall changes are made yet.
@@ -726,11 +646,7 @@ tailedbox master status
 - feat: add join-code enrollment foundation
 - feat: add systemd service management for Tailedbox agent
 - feat: refactor interactive UI into internal/ui package
-- docs: add mesh protocol design
-- feat: add mesh protocol, store, and crypto foundation
-- feat: add mesh agent control and CLI status surfaces
-- feat: add mesh config toggles and session packet helpers
-- feat: add enrolled UDP mesh ping/pong
+- secure connection module work is tracked in `secureconn/CONTEXT.md`
 
 ## Commit Policy
 
@@ -746,28 +662,19 @@ explicitly asks to commit.
 
 Recommended next implementation order:
 
-1. Part 7: Mesh MVP Implementation.
+1. Continue secure connection work tracked in `secureconn/CONTEXT.md`.
 2. Part 2: Versioned GitHub Release Installer.
 
-Why Part 7 next:
+Why secure connection work remains next:
 
-- Enrollment now exists as local state.
-- A long-running local agent now exists.
-- Part 6 now provides a written protocol, threat model, handshake design,
-  packet flow, peer discovery model, and firewall posture.
-- The initial Part 7 protocol, store, and crypto primitives now exist.
-- The initial Part 7 agent control socket and mesh CLI status surfaces now
-  exist.
-- Mesh config toggles and session packet helpers now exist.
-- Direct enrolled UDP ping/pong now works for worker-to-master traffic.
-- The next useful milestone is durable session lifecycle, rekey handling,
-  broader peer routing, reconnect lease enforcement over active sessions, and
-  network enrollment.
+- The primary app now has identity, enrollment, and a long-running local agent.
+- Module-specific progress and next milestones live in `secureconn/CONTEXT.md`.
 
 Why not PostgreSQL next:
 
 - PostgreSQL should depend on secure node identity, enrollment, agent lifecycle,
-  mesh networking, runtime abstraction, and eventually HA coordination.
+  reliable secure connectivity, runtime abstraction, and eventually HA
+  coordination.
 
 ## Design Guardrails
 

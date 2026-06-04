@@ -12,8 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/tailedbox/tailedbox/internal/config"
-	"github.com/tailedbox/tailedbox/internal/mesh/store"
+	"github.com/tailedbox/secureconn/store"
 )
 
 const (
@@ -72,7 +71,7 @@ type DiagnoseResult struct {
 
 type Handler func(context.Context, Request) Response
 
-func SocketPath(paths config.Paths) string {
+func SocketPath(paths store.Paths) string {
 	direct := filepath.Join(paths.AgentDir, "control.sock")
 	if len(direct) <= maxUnixSocketPath {
 		return direct
@@ -81,7 +80,7 @@ func SocketPath(paths config.Paths) string {
 	return filepath.Join(os.TempDir(), "tailedbox-agent-"+hex.EncodeToString(sum[:8]), "control.sock")
 }
 
-func Listen(paths config.Paths) (net.Listener, string, error) {
+func Listen(paths store.Paths) (net.Listener, string, error) {
 	socketPath := SocketPath(paths)
 	if err := os.MkdirAll(filepath.Dir(socketPath), 0o700); err != nil {
 		return nil, "", fmt.Errorf("create agent control directory: %w", err)
@@ -127,7 +126,7 @@ func Serve(ctx context.Context, listener net.Listener, handler Handler) {
 	}
 }
 
-func RoundTrip(ctx context.Context, paths config.Paths, request Request) (Response, error) {
+func RoundTrip(ctx context.Context, paths store.Paths, request Request) (Response, error) {
 	if request.Version == 0 {
 		request.Version = 1
 	}

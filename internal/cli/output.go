@@ -10,9 +10,9 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+	"github.com/tailedbox/secureconn/control"
+	"github.com/tailedbox/secureconn/store"
 	"github.com/tailedbox/tailedbox/internal/agent"
-	"github.com/tailedbox/tailedbox/internal/mesh/control"
-	"github.com/tailedbox/tailedbox/internal/mesh/store"
 	"github.com/tailedbox/tailedbox/internal/status"
 )
 
