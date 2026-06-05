@@ -1,20 +1,21 @@
-# Secureconn Context
+# Link Context
 
 This is the secure connection module context for
-`github.com/tailedbox/secureconn`. Root Tailedbox context lives in
-`../CONTEXT.md`.
+`github.com/tailedbox/link`. Root Tailedbox context lives in
+`../../CONTEXT.md`.
 
 ## Purpose
 
-`secureconn` owns the secure connection layer used by Tailedbox for node-to-node
-and local control communication. It is a standalone Go workspace module so
-protocol, crypto, transport, control, and runtime-state code can be developed
-and tested independently from the CLI application.
+`link` owns the secure connection layer used by Tailedbox for node-to-node
+and local control communication. It is a Go workspace module so protocol,
+crypto, transport, control, and runtime-state code can be developed and tested
+separately from the root CLI application. It is not independently runnable;
+Tailedbox is the executable surface.
 
 ## Module Layout
 
 ```txt
-secureconn/
+packages/link/
   protocol/    packet envelope and JSON control messages
   crypto/      transcript signing, key derivation, AEAD helpers
   session/     replay windows and encrypted packet helpers
@@ -23,24 +24,23 @@ secureconn/
   store/       private runtime status and peer observation files
   identity/    public identity shape and validation helpers
   internal/lab/ isolated lab state, identity, trust, and ping helpers
-  cmd/         standalone secureconn lab CLI/TUI
   docs/        protocol design documents
 ```
 
 ## Documentation
 
 - Protocol design: `docs/mesh-protocol-design.md`.
-- Standalone lab testing: `docs/standalone-lab.md`.
+- Link architecture diagram: `docs/link-architecture.drawio`.
 
 ## Architecture
 
-- Protocol package: `secureconn/protocol`.
-- Crypto package: `secureconn/crypto`.
-- Session package: `secureconn/session`.
-- Identity helper package: `secureconn/identity`.
-- Control package: `secureconn/control`.
-- Store package: `secureconn/store`.
-- Transport package: `secureconn/transport`.
+- Protocol package: `link/protocol`.
+- Crypto package: `link/crypto`.
+- Session package: `link/session`.
+- Identity helper package: `link/identity`.
+- Control package: `link/control`.
+- Store package: `link/store`.
+- Transport package: `link/transport`.
 - Packet envelope uses the `TBXM` magic and a versioned binary header.
 - Control messages are JSON payloads carried inside encrypted packets after
   session establishment.
@@ -69,24 +69,23 @@ secureconn/
 - CLI surfaces live in the root app under `internal/cli`.
 - The Tailedbox app loads local config, node identity, trusted-node records, and
   joined-cluster records.
-- The app converts Tailedbox identity metadata to `secureconn/identity`.
-- The app supplies `secureconn/transport.TrustValidator`.
-- The app supplies `secureconn/store.PeerWriter` as the peer observer.
-- The app starts `secureconn/control` and `secureconn/transport` from
+- The app converts Tailedbox identity metadata to `link/identity`.
+- The app supplies `link/transport.TrustValidator`.
+- The app supplies `link/store.PeerWriter` as the peer observer.
+- The app starts `link/control` and `link/transport` from
   `tailedbox agent run`.
-- Root `go.work` includes the root CLI module and `./secureconn`.
-- Root `go.mod` requires `github.com/tailedbox/secureconn v0.0.0`.
+- Root `go.work` includes the root CLI module and `./packages/link`.
+- Root `go.mod` requires `github.com/tailedbox/link v0.0.0`.
 - Root `go.mod` uses a local `replace` so root-only commands work offline.
 
-## Standalone Lab Tool
+## Internal Lab Harness
 
-- `cmd/secureconn` is an independent dev/lab CLI for exercising this module
+- `internal/lab` is a non-production test harness for exercising this module
   without importing the root Tailedbox app.
-- Running `secureconn` with no arguments opens a basic Bubble Tea lab launcher.
-- Scriptable lab commands create isolated master/worker lab nodes, create
-  one-time invites, join over UDP, pair trust, run a UDP listener, ping a peer,
-  and inspect lab status.
-- Lab state is stored under user-selected directories and includes lab node
+- Lab helpers create isolated master/worker lab nodes, create one-time invites,
+  join over UDP, pair trust, run a UDP listener, ping a peer, and inspect lab
+  status from Go tests.
+- Lab state is stored under test-selected directories and includes lab node
   identity, one-time invite records, and lab trust records.
 - Lab trust records can carry public and VPC/private endpoints plus the last
   endpoint observed or used.
@@ -101,14 +100,9 @@ secureconn/
 - A join code is only for first enrollment. After a worker is trusted, restarts
   and later connectivity use the normal signed encrypted session handshake,
   not the original join code.
-- `secureconn lab trust revoke` explicitly removes a trusted peer from a lab
-  node.
-- The lab tool uses only secureconn packages and `internal/lab`; it does not
+- Lab helpers can explicitly remove trust for a peer by node ID.
+- The lab harness uses only link packages and `internal/lab`; it does not
   import root `internal/...` packages.
-- VS Code launch configs in the root `.vscode/launch.json` can run the lab menu,
-  initialize lab master/worker state, create an invite, prompt for invite-based
-  join, pair trust, run the master listener, ping the master from the worker,
-  and inspect worker status.
 
 ## Implemented
 
@@ -154,41 +148,30 @@ secureconn/
 - Peer observation callbacks.
 - Self-contained loopback test with generated in-memory identities and trust
   map.
-- Standalone lab helper package for isolated node initialization, trust pairing,
+- Internal lab helper package for isolated node initialization, trust pairing,
   one-time invite creation, network join, status, and ping flows.
-- Bubble Tea lab launcher over the same scriptable lab commands.
 - Lab one-shot ping and listener shutdown update runtime status back to stopped
   after closing temporary transports.
-- Standalone lab enrollment can join a worker to a master over a public VPS
+- Internal lab enrollment can join a worker to a master over a public VPS
   endpoint or a VPC/private endpoint.
-- Standalone lab enrollment consumes invite codes after successful join and
+- Internal lab enrollment consumes invite codes after successful join and
   persists trust on both master and worker.
-- Standalone lab enrollment pins the expected master fingerprint from the invite
+- Internal lab enrollment pins the expected master fingerprint from the invite
   code before accepting signed enrollment responses.
-- Standalone lab trust can be explicitly revoked by peer node ID.
+- Internal lab trust can be explicitly revoked by peer node ID.
 
 ## Commands
 
 From the workspace root:
 
 ```bash
-go test ./secureconn/...
+go test ./packages/link/...
 ```
 
-From inside `secureconn/`:
+From inside `packages/link/`:
 
 ```bash
 go test ./...
-go run ./cmd/secureconn
-go run ./cmd/secureconn lab init --role master --state-dir ./lab/master
-go run ./cmd/secureconn lab init --role worker --state-dir ./lab/worker
-go run ./cmd/secureconn lab invite create --state-dir ./lab/master --public-endpoint 203.0.113.10:41677 --vpc-endpoint 10.0.1.5:41677
-go run ./cmd/secureconn lab join --state-dir ./lab/worker --code <invite-code> --master-endpoint 203.0.113.10:41677
-go run ./cmd/secureconn lab pair --master-state-dir ./lab/master --worker-state-dir ./lab/worker --master-endpoint 127.0.0.1:41677
-go run ./cmd/secureconn lab trust revoke --state-dir ./lab/master --peer lab_worker
-go run ./cmd/secureconn lab run --state-dir ./lab/master --host 127.0.0.1 --port 41677
-go run ./cmd/secureconn lab ping --state-dir ./lab/worker --peer lab_master --endpoint 127.0.0.1:41677
-go run ./cmd/secureconn lab status --state-dir ./lab/worker
 ```
 
 ## Tests
@@ -234,7 +217,7 @@ Module transport tests stay self-contained and do not import the root app.
 
 - Rekey and close packet types exist, but full rekey/close behavior is not wired
   into durable transport sessions yet.
-- Standalone lab network enrollment exists, but the root Tailedbox app has not
+- Internal lab network enrollment exists, but the root Tailedbox app has not
   yet wired network enrollment over `--master-endpoint`.
 - No durable multi-peer session lifecycle yet.
 - No rekey loop for active sessions yet.
@@ -245,6 +228,7 @@ Module transport tests stay self-contained and do not import the root app.
 - No production NAT traversal.
 - No relay fallback.
 - The control socket is local-only.
+- The link module has no standalone binary, TUI, or deploy helper.
 - Windows named-pipe support is not implemented.
 - Runtime status currently reflects the consuming app's service lifecycle and
   transport callbacks; richer durable session state depends on transport
@@ -260,6 +244,6 @@ Module transport tests stay self-contained and do not import the root app.
 3. Close active sessions on trust or lease expiry.
 4. Add broader peer routing that does not depend only on observed endpoints.
 5. Add reconnect/backoff behavior for live sessions.
-6. Wire standalone enrollment behavior into the root Tailedbox
+6. Wire internal lab enrollment behavior into the root Tailedbox
    `--master-endpoint` flow.
 7. Revisit relay fallback and NAT traversal after the direct UDP MVP is stable.

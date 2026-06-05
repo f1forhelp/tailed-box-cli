@@ -14,7 +14,9 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/tailedbox",
-      "args": ["version"]
+      "args": [
+        "version"
+      ]
     },
     {
       "name": "tailedbox: status",
@@ -22,7 +24,9 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/tailedbox",
-      "args": ["status"],
+      "args": [
+        "status"
+      ],
       "env": {
         "TAILEDBOX_CONFIG": "${workspaceFolder}/.tmp/vscode/config.json",
         "TAILEDBOX_STATE_DIR": "${workspaceFolder}/.tmp/vscode/state",
@@ -35,7 +39,11 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/tailedbox",
-      "args": ["init", "--role", "master"],
+      "args": [
+        "init",
+        "--role",
+        "master"
+      ],
       "env": {
         "TAILEDBOX_CONFIG": "${workspaceFolder}/.tmp/vscode/config.json",
         "TAILEDBOX_STATE_DIR": "${workspaceFolder}/.tmp/vscode/state",
@@ -48,7 +56,10 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/tailedbox",
-      "args": ["master", "status"],
+      "args": [
+        "master",
+        "status"
+      ],
       "env": {
         "TAILEDBOX_CONFIG": "${workspaceFolder}/.tmp/vscode/config.json",
         "TAILEDBOX_STATE_DIR": "${workspaceFolder}/.tmp/vscode/state",
@@ -61,168 +72,15 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/tailedbox",
-      "args": ["worker", "status"],
+      "args": [
+        "worker",
+        "status"
+      ],
       "env": {
         "TAILEDBOX_CONFIG": "${workspaceFolder}/.tmp/vscode/config.json",
         "TAILEDBOX_STATE_DIR": "${workspaceFolder}/.tmp/vscode/state",
         "TAILEDBOX_LOG_DIR": "${workspaceFolder}/.tmp/vscode/logs"
       }
-    },
-    {
-      "name": "secureconn: lab menu",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/secureconn/cmd/secureconn",
-      "cwd": "${workspaceFolder}/secureconn"
-    },
-    {
-      "name": "secureconn: init lab master",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/secureconn/cmd/secureconn",
-      "args": [
-        "lab",
-        "init",
-        "--role",
-        "master",
-        "--node-id",
-        "lab_master",
-        "--state-dir",
-        "${workspaceFolder}/secureconn/.tmp/vscode/lab/master"
-      ],
-      "cwd": "${workspaceFolder}/secureconn"
-    },
-    {
-      "name": "secureconn: init lab worker",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/secureconn/cmd/secureconn",
-      "args": [
-        "lab",
-        "init",
-        "--role",
-        "worker",
-        "--node-id",
-        "lab_worker",
-        "--state-dir",
-        "${workspaceFolder}/secureconn/.tmp/vscode/lab/worker"
-      ],
-      "cwd": "${workspaceFolder}/secureconn"
-    },
-    {
-      "name": "secureconn: create lab invite",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/secureconn/cmd/secureconn",
-      "args": [
-        "lab",
-        "invite",
-        "create",
-        "--state-dir",
-        "${workspaceFolder}/secureconn/.tmp/vscode/lab/master",
-        "--public-endpoint",
-        "127.0.0.1:24177",
-        "--vpc-endpoint",
-        "10.0.1.5:24177"
-      ],
-      "cwd": "${workspaceFolder}/secureconn"
-    },
-    {
-      "name": "secureconn: pair lab nodes",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/secureconn/cmd/secureconn",
-      "args": [
-        "lab",
-        "pair",
-        "--master-state-dir",
-        "${workspaceFolder}/secureconn/.tmp/vscode/lab/master",
-        "--worker-state-dir",
-        "${workspaceFolder}/secureconn/.tmp/vscode/lab/worker",
-        "--master-endpoint",
-        "127.0.0.1:24177"
-      ],
-      "cwd": "${workspaceFolder}/secureconn"
-    },
-    {
-      "name": "secureconn: run lab master",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/secureconn/cmd/secureconn",
-      "args": [
-        "lab",
-        "run",
-        "--state-dir",
-        "${workspaceFolder}/secureconn/.tmp/vscode/lab/master",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "24177"
-      ],
-      "cwd": "${workspaceFolder}/secureconn"
-    },
-    {
-      "name": "secureconn: join lab worker",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/secureconn/cmd/secureconn",
-      "args": [
-        "lab",
-        "join",
-        "--state-dir",
-        "${workspaceFolder}/secureconn/.tmp/vscode/lab/worker",
-        "--code",
-        "${input:secureconnInviteCode}",
-        "--master-endpoint",
-        "127.0.0.1:24177"
-      ],
-      "cwd": "${workspaceFolder}/secureconn"
-    },
-    {
-      "name": "secureconn: ping lab master",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/secureconn/cmd/secureconn",
-      "args": [
-        "lab",
-        "ping",
-        "--state-dir",
-        "${workspaceFolder}/secureconn/.tmp/vscode/lab/worker",
-        "--peer",
-        "lab_master",
-        "--endpoint",
-        "127.0.0.1:24177"
-      ],
-      "cwd": "${workspaceFolder}/secureconn"
-    },
-    {
-      "name": "secureconn: worker lab status",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/secureconn/cmd/secureconn",
-      "args": [
-        "lab",
-        "status",
-        "--state-dir",
-        "${workspaceFolder}/secureconn/.tmp/vscode/lab/worker"
-      ],
-      "cwd": "${workspaceFolder}/secureconn"
-    }
-  ],
-  "inputs": [
-    {
-      "id": "secureconnInviteCode",
-      "type": "promptString",
-      "description": "Paste the code printed by secureconn: create lab invite"
     }
   ]
 }

@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/tailedbox/secureconn/control"
-	"github.com/tailedbox/secureconn/store"
-	"github.com/tailedbox/secureconn/transport"
+	"github.com/tailedbox/link/control"
+	"github.com/tailedbox/link/store"
+	"github.com/tailedbox/link/transport"
 	"github.com/tailedbox/tailedbox/internal/config"
 )
 

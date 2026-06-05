@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tailedbox/secureconn/internal/private"
+	"github.com/tailedbox/link/internal/private"
 )
 
 const (

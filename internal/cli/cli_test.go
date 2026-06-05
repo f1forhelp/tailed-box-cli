@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tailedbox/secureconn/control"
-	"github.com/tailedbox/secureconn/store"
+	"github.com/tailedbox/link/control"
+	"github.com/tailedbox/link/store"
 	"github.com/tailedbox/tailedbox/internal/buildinfo"
 	"github.com/tailedbox/tailedbox/internal/config"
 	"github.com/tailedbox/tailedbox/internal/ui"

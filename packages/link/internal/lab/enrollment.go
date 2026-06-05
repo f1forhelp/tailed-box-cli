@@ -18,10 +18,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tailedbox/secureconn/identity"
-	"github.com/tailedbox/secureconn/internal/private"
-	"github.com/tailedbox/secureconn/protocol"
-	"github.com/tailedbox/secureconn/transport"
+	"github.com/tailedbox/link/identity"
+	"github.com/tailedbox/link/internal/private"
+	"github.com/tailedbox/link/protocol"
+	"github.com/tailedbox/link/transport"
 )
 
 const (

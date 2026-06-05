@@ -16,11 +16,11 @@ import (
 	"sync"
 	"time"
 
-	meshcrypto "github.com/tailedbox/secureconn/crypto"
-	"github.com/tailedbox/secureconn/identity"
-	"github.com/tailedbox/secureconn/protocol"
-	"github.com/tailedbox/secureconn/session"
-	"github.com/tailedbox/secureconn/store"
+	meshcrypto "github.com/tailedbox/link/crypto"
+	"github.com/tailedbox/link/identity"
+	"github.com/tailedbox/link/protocol"
+	"github.com/tailedbox/link/session"
+	"github.com/tailedbox/link/store"
 )
 
 const (

@@ -17,14 +17,14 @@ secure connection foundation is reliable.
 Always start with:
 
 - `CONTEXT.md` for base Tailedbox app context.
-- `secureconn/CONTEXT.md` when touching secure connection module code or mesh
-  runtime behavior.
+- `packages/link/CONTEXT.md` when touching secure connection module
+  code or mesh runtime behavior.
 
 ## Context Updates
 
 - Update `CONTEXT.md` whenever base app behavior, architecture, decisions,
   commands, limitations, or roadmap items change.
-- Update `secureconn/CONTEXT.md` whenever secure connection behavior,
+- Update `packages/link/CONTEXT.md` whenever secure connection behavior,
   architecture, tests, limitations, or roadmap items change.
 - Keep this `AGENTS.md` as routing plus basic guardrails only. Do not add
   detailed progress here.
@@ -53,7 +53,7 @@ Use the pinned module toolchain:
 ```bash
 go version
 go test ./...
-go test ./secureconn/...
+go test ./packages/link/...
 go build ./cmd/tailedbox
 ```
 

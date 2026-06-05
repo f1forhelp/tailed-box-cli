@@ -1,0 +1,224 @@
+<mxfile host="app.diagrams.net" agent="Codex" pages="3">
+  <diagram id="link-overview" name="1. Overview">
+    <mxGraphModel dx="1437" dy="984" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ov_title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=28;fontStyle=1;align=center;" value="link Overview" vertex="1">
+          <mxGeometry height="40" width="740" x="330" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_subtitle" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=14;fontColor=#4B5563;align=center;" value="One-time enrollment creates trust. Enrolled peers then use signed ephemeral handshakes and encrypted control messages." vertex="1">
+          <mxGeometry height="30" width="980" x="210" y="75" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_master" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EEF2FF;strokeColor=#4338CA;fontSize=17;fontStyle=1;" value="Master Node" vertex="1">
+          <mxGeometry height="55" width="330" x="80" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_worker" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#ECFDF5;strokeColor=#047857;fontSize=17;fontStyle=1;" value="Worker Node" vertex="1">
+          <mxGeometry height="55" width="330" x="990" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_master_identity" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#4338CA;fontSize=13;" value="Local Identity&#xa;node ID&#xa;Ed25519 public/private key&#xa;private key stored 0600" vertex="1">
+          <mxGeometry height="100" width="330" x="80" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_worker_identity" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#047857;fontSize=13;" value="Local Identity&#xa;node ID&#xa;Ed25519 public/private key&#xa;private key stored 0600" vertex="1">
+          <mxGeometry height="100" width="330" x="990" y="255" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_master_state" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#F8FAFC;strokeColor=#64748B;fontSize=13;" value="Master Private State&#xa;invites with secret hashes&#xa;trusted worker records&#xa;runtime peer observations" vertex="1">
+          <mxGeometry height="110" width="330" x="80" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_worker_state" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#F8FAFC;strokeColor=#64748B;fontSize=13;" value="Worker Private State&#xa;pinned master trust&#xa;trusted peer records&#xa;runtime peer observations" vertex="1">
+          <mxGeometry height="110" width="330" x="990" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_join" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FEF3C7;strokeColor=#D97706;fontSize=16;fontStyle=1;" value="One-Time Join" vertex="1">
+          <mxGeometry height="60" width="330" x="535" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_join_details" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFBEB;strokeColor=#D97706;fontSize=13;" value="Invite code pins master identity&#xa;worker sends join request&#xa;master sends signed challenge&#xa;worker proves code secret&#xa;master sends signed accept" vertex="1">
+          <mxGeometry height="130" width="330" x="535" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_trust" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#F5F3FF;strokeColor=#7C3AED;fontSize=16;fontStyle=1;" value="Persisted Trust" vertex="1">
+          <mxGeometry height="60" width="330" x="535" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_trust_details" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#F5F3FF;strokeColor=#7C3AED;fontSize=13;" value="Master trusts worker identity&#xa;Worker trusts pinned master identity&#xa;Invite is marked used&#xa;Original code is not reused" vertex="1">
+          <mxGeometry height="115" width="330" x="535" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_session" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#DBEAFE;strokeColor=#2563EB;fontSize=16;fontStyle=1;" value="Enrolled Secure Session" vertex="1">
+          <mxGeometry height="60" width="330" x="535" y="655" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_session_details" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EFF6FF;strokeColor=#2563EB;fontSize=13;" value="Ed25519 transcript signatures&#xa;X25519 ephemeral key agreement&#xa;HKDF-SHA256 session keys&#xa;AES-256-GCM encrypted packets&#xa;replay window rejects duplicates" vertex="1">
+          <mxGeometry height="125" width="330" x="535" y="745" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_revoke" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FEE2E2;strokeColor=#DC2626;fontSize=13;fontStyle=1;" value="Explicit Revocation&#xa;remove peer trust&#xa;future handshakes fail&#xa;new invite required" vertex="1">
+          <mxGeometry height="120" width="330" x="990" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_e1" edge="1" parent="1" source="ov_master_state" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#D97706;fontSize=11;" target="ov_join_details" value="create invite">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_e2" edge="1" parent="1" source="ov_worker_identity" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#D97706;fontSize=11;" target="ov_join_details" value="join request">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_e3" edge="1" parent="1" source="ov_join_details" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#7C3AED;fontSize=11;" target="ov_trust" value="write trust">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_e4" edge="1" parent="1" source="ov_trust_details" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#7C3AED;fontSize=11;" target="ov_master_state" value="trusted worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_e5" edge="1" parent="1" source="ov_trust_details" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#7C3AED;fontSize=11;" target="ov_worker_state" value="pinned master">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_e6" edge="1" parent="1" source="ov_trust_details" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#2563EB;fontSize=11;" target="ov_session" value="normal reconnect path">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ov_e7" edge="1" parent="1" source="ov_revoke" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#DC2626;fontSize=11;" target="ov_worker_state" value="revoke trust">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="link-join-sequence" name="2. One-Time Join">
+    <mxGraphModel dx="1500" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="join_title" value="One-Time Join Sequence" style="text;html=1;strokeColor=none;fillColor=none;fontSize=28;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="350" y="30" width="800" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="join_master" value="Master" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EEF2FF;strokeColor=#4338CA;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="110" width="300" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="join_code" value="Invite Code" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FEF3C7;strokeColor=#D97706;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="560" y="110" width="380" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="join_worker" value="Worker" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#ECFDF5;strokeColor=#047857;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="110" width="300" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="join_m1" value="1. invite create&#xa;random secret generated&#xa;only SHA256(secret) is stored&#xa;invite is active until expiry" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#4338CA;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="70" y="220" width="340" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="join_c1" value="scj1.&lt;payload&gt;.&lt;secret&gt;&#xa;payload pins: role, cluster, master node ID, master fingerprint, expiry&#xa;secret is printed once" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FEF3C7;strokeColor=#D97706;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="530" y="220" width="440" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="join_w1" value="2. worker parses code&#xa;pins expected master ID&#xa;pins expected master fingerprint&#xa;keeps secret only in memory" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFFFFF;strokeColor=#047857;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="220" width="340" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="join_req" value="3. enroll_request&#xa;worker identity + public key&#xa;code ID, role, cluster&#xa;fresh client nonce&#xa;optional endpoint metadata" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF7ED;strokeColor=#EA580C;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="530" y="380" width="440" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="join_challenge" value="4. enroll_challenge&#xa;master identity + public key&#xa;challenge nonce&#xa;echoes client nonce&#xa;signed by master Ed25519 key" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF7ED;strokeColor=#EA580C;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="530" y="530" width="440" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="join_proof" value="5. enroll_proof&#xa;HMAC-SHA256 proof&#xa;key = SHA256(invite secret)&#xa;binds both identities, both nonces, and endpoints" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF7ED;strokeColor=#EA580C;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="530" y="680" width="440" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="join_accept" value="6. enroll_accept&#xa;signed by pinned master&#xa;echoes worker identity and both nonces&#xa;master consumes invite&#xa;both sides persist trust" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF7ED;strokeColor=#EA580C;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="530" y="820" width="440" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="join_master_checks" value="Master checks&#xa;invite exists&#xa;invite unused&#xa;invite not expired&#xa;role and cluster match" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EEF2FF;strokeColor=#4338CA;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="70" y="390" width="340" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="join_master_store" value="Master stores&#xa;trusted worker identity&#xa;worker endpoint metadata&#xa;invite used_by + used_at" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EEF2FF;strokeColor=#4338CA;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="70" y="700" width="340" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="join_worker_checks" value="Worker checks&#xa;challenge signer equals pinned master&#xa;accept signer equals pinned master&#xa;nonces match this attempt&#xa;then stores master trust" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#ECFDF5;strokeColor=#047857;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="505" width="340" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="join_security" value="Security result&#xa;MITM fails because rogue master fingerprint is not pinned&#xa;Replay fails because nonces are fresh&#xa;Reuse fails because invite is consumed&#xa;Reconnect uses persisted trust, not the code" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FEE2E2;strokeColor=#DC2626;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="720" width="340" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="join_e1" value="prints" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#D97706;fontSize=11;" edge="1" parent="1" source="join_m1" target="join_c1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="join_e2" value="operator provides code" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#D97706;fontSize=11;" edge="1" parent="1" source="join_c1" target="join_w1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="join_e3" value="send request" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#EA580C;fontSize=11;" edge="1" parent="1" source="join_w1" target="join_req">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="join_e4" value="validate invite" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#4338CA;fontSize=11;" edge="1" parent="1" source="join_req" target="join_master_checks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="join_e5" value="signed response" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#EA580C;fontSize=11;" edge="1" parent="1" source="join_master_checks" target="join_challenge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="join_e6" value="verify pinned master" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#047857;fontSize=11;" edge="1" parent="1" source="join_challenge" target="join_worker_checks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="join_e7" value="send proof" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#EA580C;fontSize=11;" edge="1" parent="1" source="join_worker_checks" target="join_proof">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="join_e8" value="verify proof + consume" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#4338CA;fontSize=11;" edge="1" parent="1" source="join_proof" target="join_master_store">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="join_e9" value="signed accept" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#EA580C;fontSize=11;" edge="1" parent="1" source="join_master_store" target="join_accept">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="join_e10" value="persist master trust" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#047857;fontSize=11;" edge="1" parent="1" source="join_accept" target="join_worker_checks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="link-session-sequence" name="3. Enrolled Session">
+    <mxGraphModel dx="1500" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sess_title" value="Enrolled Secure Session" style="text;html=1;strokeColor=none;fillColor=none;fontSize=28;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="350" y="30" width="800" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_worker" value="Initiator&#xa;worker or master" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#ECFDF5;strokeColor=#047857;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="120" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_master" value="Responder&#xa;trusted peer" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EEF2FF;strokeColor=#4338CA;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="120" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_trust" value="Trust Validators&#xa;role, cluster, fingerprint, and public key must match local trust records" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#F5F3FF;strokeColor=#7C3AED;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="555" y="120" width="390" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_hello" value="1. client_hello&#xa;initiator identity&#xa;ephemeral X25519 public key&#xa;nonce, timestamp, cipher suites" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#DBEAFE;strokeColor=#2563EB;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="555" y="260" width="390" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_server" value="2. server_hello&#xa;responder identity&#xa;ephemeral X25519 public key&#xa;session ID&#xa;signed handshake transcript" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#DBEAFE;strokeColor=#2563EB;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="555" y="410" width="390" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_auth" value="3. client_auth&#xa;encrypted auth packet&#xa;initiator transcript signature&#xa;session becomes established" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#DBEAFE;strokeColor=#2563EB;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="555" y="570" width="390" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_crypto" value="Session Crypto&#xa;X25519 shared secret&#xa;HKDF-SHA256 derives directional keys&#xa;AES-256-GCM encrypts control packets&#xa;packet header is associated data" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EFF6FF;strokeColor=#2563EB;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="420" width="330" height="135" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_control" value="4. encrypted_data&#xa;ping / pong / status / diagnostics&#xa;replay window rejects duplicates and stale packets&#xa;peer observations update runtime status" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#EFF6FF;strokeColor=#2563EB;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="420" width="330" height="135" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_revoke" value="Revocation Behavior&#xa;if trust is removed, new handshakes fail&#xa;existing durable session close/rekey enforcement is future work" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FEE2E2;strokeColor=#DC2626;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="555" y="735" width="390" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_e1" value="send" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#2563EB;fontSize=11;" edge="1" parent="1" source="sess_worker" target="sess_hello">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_e2" value="validate initiator" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#7C3AED;fontSize=11;" edge="1" parent="1" source="sess_hello" target="sess_trust">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_e3" value="reply" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#2563EB;fontSize=11;" edge="1" parent="1" source="sess_trust" target="sess_server">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_e4" value="verify responder signature" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#2563EB;fontSize=11;" edge="1" parent="1" source="sess_server" target="sess_worker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_e5" value="derive keys" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#2563EB;fontSize=11;" edge="1" parent="1" source="sess_server" target="sess_crypto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_e6" value="encrypted auth" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#2563EB;fontSize=11;" edge="1" parent="1" source="sess_worker" target="sess_auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_e7" value="establish session" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#2563EB;fontSize=11;" edge="1" parent="1" source="sess_auth" target="sess_master">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_e8" value="encrypted messages" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;startArrow=block;strokeWidth=2;strokeColor=#2563EB;fontSize=11;" edge="1" parent="1" source="sess_crypto" target="sess_control">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_e9" value="revoked trust blocks future handshake" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeWidth=2;strokeColor=#DC2626;fontSize=11;" edge="1" parent="1" source="sess_revoke" target="sess_trust">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

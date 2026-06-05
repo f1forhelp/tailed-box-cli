@@ -10,7 +10,7 @@ than separate binaries.
 ## Repository Layout
 
 - Root module: the Tailedbox CLI application.
-- `secureconn/`: standalone workspace module for secure connection and control
+- `packages/link/`: workspace module for secure connection and control
   communication.
 - `internal/`: app-only packages for CLI, local state, enrollment, agent
   lifecycle, status, and adapters.
@@ -21,7 +21,7 @@ than separate binaries.
 ```bash
 go version
 go test ./...
-go test ./secureconn/...
+go test ./packages/link/...
 go build ./cmd/tailedbox
 ```
 

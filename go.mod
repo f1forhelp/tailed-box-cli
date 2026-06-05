@@ -7,7 +7,7 @@ toolchain go1.26.3
 require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/tailedbox/secureconn v0.0.0
+	github.com/tailedbox/link v0.0.0
 )
 
 require (
@@ -30,4 +30,4 @@ require (
 	golang.org/x/text v0.3.8 // indirect
 )
 
-replace github.com/tailedbox/secureconn => ./secureconn
+replace github.com/tailedbox/link => ./packages/link

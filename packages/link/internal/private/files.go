@@ -44,7 +44,7 @@ func WriteFileAtomic(path string, data []byte) (bool, error) {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return false, fmt.Errorf("read private file %q: %w", path, err)
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".secureconn-*.tmp")
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".link-*.tmp")
 	if err != nil {
 		return false, fmt.Errorf("create temp file for %q: %w", path, err)
 	}

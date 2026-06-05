@@ -1,7 +1,7 @@
 # Tailedbox Context
 
 This is the base application context. The secure connection module has its own
-context at `secureconn/CONTEXT.md`.
+context at `packages/link/CONTEXT.md`.
 
 ## Product Intent
 
@@ -28,7 +28,7 @@ foundation is reliable.
 - Root module: Tailedbox CLI application.
 - `cmd/tailedbox`: binary entrypoint.
 - `internal/`: app-only packages.
-- `secureconn/`: standalone secure connection workspace module.
+- `packages/link/`: secure connection workspace module.
 
 ## Architecture
 
@@ -39,7 +39,8 @@ foundation is reliable.
 - Node identity uses Ed25519 keys generated locally.
 - The foreground agent is `tailedbox agent run`.
 - Local health is persisted to `<state-dir>/agent/status.json`.
-- Secure connection behavior and roadmap are tracked in `secureconn/CONTEXT.md`.
+- Secure connection behavior and roadmap are tracked in
+  `packages/link/CONTEXT.md`.
 
 ## Implemented
 
@@ -75,7 +76,7 @@ foundation is reliable.
 - Agent heartbeat status with memory diagnostics.
 - Logs aliases.
 - Linux systemd unit generation and control commands.
-- Mesh CLI surfaces that integrate with `secureconn` through the root app
+- Mesh CLI surfaces that integrate with the `link` module through the root app
   adapter.
 
 ## Commands
@@ -150,7 +151,7 @@ Build and test:
 ```bash
 go version
 go test ./...
-go test ./secureconn/...
+go test ./packages/link/...
 go build ./cmd/tailedbox
 ```
 
@@ -206,7 +207,7 @@ Permissions:
 
 ## Roadmap
 
-1. Continue secure connection work tracked in `secureconn/CONTEXT.md`.
+1. Continue secure connection work tracked in `packages/link/CONTEXT.md`.
 2. Add a versioned GitHub release installer.
 3. Add future managed services only after the secure connection foundation is
    reliable.

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	secureidentity "github.com/tailedbox/secureconn/identity"
-	"github.com/tailedbox/secureconn/store"
-	"github.com/tailedbox/secureconn/transport"
+	secureidentity "github.com/tailedbox/link/identity"
+	"github.com/tailedbox/link/store"
+	"github.com/tailedbox/link/transport"
 	"github.com/tailedbox/tailedbox/internal/config"
 	"github.com/tailedbox/tailedbox/internal/identity"
 	"github.com/tailedbox/tailedbox/internal/secrets"

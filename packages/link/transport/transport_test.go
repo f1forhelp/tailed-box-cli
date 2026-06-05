@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tailedbox/secureconn/identity"
-	"github.com/tailedbox/secureconn/store"
-	"github.com/tailedbox/secureconn/transport"
+	"github.com/tailedbox/link/identity"
+	"github.com/tailedbox/link/store"
+	"github.com/tailedbox/link/transport"
 )
 
 func TestEnrolledWorkerCanPingMasterOverUDP(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	meshcrypto "github.com/tailedbox/secureconn/crypto"
-	"github.com/tailedbox/secureconn/identity"
-	"github.com/tailedbox/secureconn/protocol"
+	meshcrypto "github.com/tailedbox/link/crypto"
+	"github.com/tailedbox/link/identity"
+	"github.com/tailedbox/link/protocol"
 )
 
 const (

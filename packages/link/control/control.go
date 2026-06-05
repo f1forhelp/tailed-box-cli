@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/tailedbox/secureconn/store"
+	"github.com/tailedbox/link/store"
 )
 
 const (

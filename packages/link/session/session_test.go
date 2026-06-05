@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	meshcrypto "github.com/tailedbox/secureconn/crypto"
-	"github.com/tailedbox/secureconn/protocol"
+	meshcrypto "github.com/tailedbox/link/crypto"
+	"github.com/tailedbox/link/protocol"
 )
 
 func TestReplayWindowRejectsDuplicatesAndStalePackets(t *testing.T) {

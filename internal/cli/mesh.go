@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tailedbox/secureconn/control"
-	"github.com/tailedbox/secureconn/store"
+	"github.com/tailedbox/link/control"
+	"github.com/tailedbox/link/store"
 	"github.com/tailedbox/tailedbox/internal/agent"
 	"github.com/tailedbox/tailedbox/internal/config"
 )

@@ -16,7 +16,7 @@ Current implementation status:
   enable/disable, status, peers, ping dispatch, and diagnostics. Direct enrolled
   worker-to-master UDP ping/pong is implemented with transcript signatures,
   X25519/HKDF session keys, replay protection, and encrypted control messages.
-  The standalone `secureconn` lab tool also implements one-time invite creation
+  The `link/internal/lab` test harness also implements one-time invite creation
   and direct UDP network join with public and VPC/private endpoint metadata.
 - Not implemented yet: durable multi-peer session lifecycle, rekey loops,
   master-to-worker routing beyond observed endpoints, and root Tailedbox
@@ -302,12 +302,12 @@ Replay protection:
 ## Network Enrollment Handshake
 
 This replaces the current root-app local `--master-state-dir` enrollment
-transport in a future implementation slice. The standalone `secureconn` lab
-tool already has a direct UDP version of this flow. The join-code lifecycle
+transport in a future implementation slice. The `link/internal/lab` test
+harness already has a direct UDP version of this flow. The join-code lifecycle
 stays the same: one-time, short-lived, role-scoped, hash persisted, raw code
-printed once. The standalone code format is `scj1.<payload>.<secret>`, where
-the payload carries non-secret pinning metadata for role, cluster ID, issuer
-node ID, issuer identity fingerprint, and expiry.
+printed once. The lab code format is `scj1.<payload>.<secret>`, where the
+payload carries non-secret pinning metadata for role, cluster ID, issuer node
+ID, issuer identity fingerprint, and expiry.
 
 Target CLI shape:
 
@@ -319,7 +319,7 @@ tailedbox master join --code <join-code> --master-endpoint <host:port>
 Enrollment flow:
 
 1. Joiner parses the join code locally.
-   - The standalone lab code format is `scj1.<payload>.<secret>`.
+   - The lab code format is `scj1.<payload>.<secret>`.
    - The payload pins the expected master node ID and identity fingerprint.
    - The raw code secret is kept only in memory.
 
@@ -533,7 +533,7 @@ Logging rules:
 Current workspace layout:
 
 ```txt
-secureconn/
+packages/link/
   protocol/    envelope constants, message structs, encoding
   crypto/      handshake, key derivation, AEAD helpers
   session/     session state, replay windows, rekeying
@@ -554,8 +554,8 @@ Suggested first implementation slice:
 4. Wire `agent run` to start the mesh service when mesh is enabled.
 5. Implement `tailedbox mesh status`, `peers`, `ping`, and `diagnose`.
 6. Add network enrollment as a follow-up root-app slice that replaces
-   `--master-state-dir` with `--master-endpoint`, using the standalone
-   `secureconn` lab enrollment flow as the implementation reference.
+   `--master-state-dir` with `--master-endpoint`, using the `link/internal/lab`
+   enrollment flow as the implementation reference.
 
 The MVP is complete when two initialized and enrolled nodes can authenticate,
 establish an encrypted session, exchange `mesh ping`, report peer status, and

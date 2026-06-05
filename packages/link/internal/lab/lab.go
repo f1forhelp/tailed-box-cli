@@ -15,14 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tailedbox/secureconn/identity"
-	"github.com/tailedbox/secureconn/internal/private"
-	"github.com/tailedbox/secureconn/store"
-	"github.com/tailedbox/secureconn/transport"
+	"github.com/tailedbox/link/identity"
+	"github.com/tailedbox/link/internal/private"
+	"github.com/tailedbox/link/store"
+	"github.com/tailedbox/link/transport"
 )
 
 const (
-	DefaultClusterID = "secureconn-lab"
+	DefaultClusterID = "link-lab"
 	RoleMaster       = "master"
 	RoleWorker       = "worker"
 )
@@ -325,7 +325,7 @@ func Start(ctx context.Context, stateDir, listenHost string, listenPort int) (*t
 		BoundEndpoint: transport.BoundEndpoint(),
 		StartedAt:     time.Now().UTC(),
 		LastUpdatedAt: time.Now().UTC(),
-		Message:       "secureconn lab transport listening",
+		Message:       "link lab transport listening",
 	}
 	_, _ = store.WriteStatus(StorePaths(stateDir), status)
 	return transport, node, nil
@@ -338,7 +338,7 @@ func Ping(ctx context.Context, stateDir, peerNodeID, endpoint string) (time.Dura
 	}
 	defer func() {
 		_ = labTransport.Close()
-		_ = WriteStoppedStatus(stateDir, "secureconn lab ping transport stopped")
+		_ = WriteStoppedStatus(stateDir, "link lab ping transport stopped")
 	}()
 	return labTransport.Ping(ctx, peerNodeID, endpoint)
 }
