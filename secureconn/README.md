@@ -18,8 +18,8 @@ The Tailedbox CLI integrates this module through `internal/mesh/service`, which
 supplies local config, node identity, trusted-node validation, joined-cluster
 validation, and runtime peer observation.
 
-Module-specific progress, limitations, and next steps are tracked in
-[`CONTEXT.md`](CONTEXT.md).
+Module context starts at [`CONTEXT.md`](CONTEXT.md). Feature-specific secure
+connection context lives under [`contexts/`](contexts/).
 
 ## Development
 
