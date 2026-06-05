@@ -52,6 +52,28 @@ func TestPacketEncodeDecodeRoundTrip(t *testing.T) {
 	}
 }
 
+func TestEnrollmentPacketTypesEncodeDecode(t *testing.T) {
+	for _, packetType := range []PacketType{
+		PacketTypeEnrollRequest,
+		PacketTypeEnrollChallenge,
+		PacketTypeEnrollProof,
+		PacketTypeEnrollAccept,
+		PacketTypeEnrollReject,
+	} {
+		encoded, err := Encode(Packet{Type: packetType, Payload: []byte("{}")})
+		if err != nil {
+			t.Fatalf("encode packet type %d: %v", packetType, err)
+		}
+		decoded, err := Decode(encoded)
+		if err != nil {
+			t.Fatalf("decode packet type %d: %v", packetType, err)
+		}
+		if decoded.Type != packetType {
+			t.Fatalf("decoded type = %d, want %d", decoded.Type, packetType)
+		}
+	}
+}
+
 func TestDecodeRejectsMalformedPackets(t *testing.T) {
 	packet, err := Encode(Packet{Type: PacketTypeClientHello, Payload: []byte("hello")})
 	if err != nil {

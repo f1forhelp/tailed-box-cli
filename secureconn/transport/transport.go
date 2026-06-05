@@ -36,6 +36,7 @@ type Options struct {
 	Now            func() time.Time
 	TrustValidator TrustValidator
 	PeerObserver   PeerObserver
+	Enrollment     EnrollmentHandler
 }
 
 type LocalNode struct {
@@ -64,6 +65,10 @@ type PeerObserver interface {
 	ObservePeer(store.PeerObservation) error
 }
 
+type EnrollmentHandler interface {
+	HandleEnrollmentPacket(packet protocol.Packet, remoteEndpoint string) (protocol.Packet, error)
+}
+
 type Transport struct {
 	local          LocalNode
 	conn           *net.UDPConn
@@ -71,6 +76,7 @@ type Transport struct {
 	now            func() time.Time
 	trustValidator TrustValidator
 	peerObserver   PeerObserver
+	enrollment     EnrollmentHandler
 	pendingMu      sync.Mutex
 	pending        map[protocol.SessionID]*serverSession
 	activeMu       sync.Mutex
@@ -129,6 +135,7 @@ func Start(ctx context.Context, local LocalNode, opts Options) (*Transport, erro
 		now:            now,
 		trustValidator: opts.TrustValidator,
 		peerObserver:   opts.PeerObserver,
+		enrollment:     opts.Enrollment,
 		pending:        make(map[protocol.SessionID]*serverSession),
 		active:         make(map[protocol.SessionID]*serverSession),
 		closed:         make(chan struct{}),
@@ -381,10 +388,23 @@ func (t *Transport) handleDatagram(data []byte, addr *net.UDPAddr) {
 		handleErr = t.handleClientAuth(packet, addr)
 	case protocol.PacketTypeEncryptedData:
 		handleErr = t.handleEncryptedData(packet, addr)
+	case protocol.PacketTypeEnrollRequest, protocol.PacketTypeEnrollProof:
+		handleErr = t.handleEnrollmentPacket(packet, addr)
 	}
 	if handleErr != nil {
 		t.debug("mesh UDP packet handling failed", "remote", addr.String(), "type", int(packet.Type), "error", handleErr)
 	}
+}
+
+func (t *Transport) handleEnrollmentPacket(packet protocol.Packet, addr *net.UDPAddr) error {
+	if t.enrollment == nil {
+		return errors.New("network enrollment is not enabled")
+	}
+	response, err := t.enrollment.HandleEnrollmentPacket(packet, addr.String())
+	if err != nil {
+		return err
+	}
+	return t.writePacket(t.conn, addr, response)
 }
 
 func (t *Transport) handleClientHello(packet protocol.Packet, addr *net.UDPAddr) error {

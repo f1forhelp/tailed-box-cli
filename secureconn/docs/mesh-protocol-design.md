@@ -16,8 +16,11 @@ Current implementation status:
   enable/disable, status, peers, ping dispatch, and diagnostics. Direct enrolled
   worker-to-master UDP ping/pong is implemented with transcript signatures,
   X25519/HKDF session keys, replay protection, and encrypted control messages.
+  The standalone `secureconn` lab tool also implements one-time invite creation
+  and direct UDP network join with public and VPC/private endpoint metadata.
 - Not implemented yet: durable multi-peer session lifecycle, rekey loops,
-  master-to-worker routing beyond observed endpoints, and network enrollment.
+  master-to-worker routing beyond observed endpoints, and root Tailedbox
+  `--master-endpoint` enrollment integration.
 
 ## Goals
 
@@ -111,8 +114,9 @@ Security properties expected:
   the local cluster and role.
 - A worker pins the master's identity fingerprint from enrollment before
   accepting control traffic.
-- Join-code secrets are sent only inside an encrypted enrollment channel and are
-  never persisted after creation.
+- Join-code secrets are never persisted after creation and are not sent raw
+  during enrollment; proof-based enrollment binds the secret to a fresh master
+  challenge.
 - Session payloads are encrypted and authenticated with per-session keys.
 - Replayed encrypted packets are rejected.
 - Session keys rotate periodically and are discarded when sessions end.
@@ -210,6 +214,11 @@ Packet types:
 4  encrypted_data
 5  rekey
 6  close
+7  enroll_request
+8  enroll_challenge
+9  enroll_proof
+10 enroll_accept
+11 enroll_reject
 ```
 
 For `encrypted_data`, `rekey`, and `close`, the envelope header is AEAD
@@ -292,9 +301,13 @@ Replay protection:
 
 ## Network Enrollment Handshake
 
-This replaces the current local `--master-state-dir` enrollment transport in a
-future implementation slice. The join-code lifecycle stays the same: one-time,
-short-lived, role-scoped, hash persisted, raw code printed once.
+This replaces the current root-app local `--master-state-dir` enrollment
+transport in a future implementation slice. The standalone `secureconn` lab
+tool already has a direct UDP version of this flow. The join-code lifecycle
+stays the same: one-time, short-lived, role-scoped, hash persisted, raw code
+printed once. The standalone code format is `scj1.<payload>.<secret>`, where
+the payload carries non-secret pinning metadata for role, cluster ID, issuer
+node ID, issuer identity fingerprint, and expiry.
 
 Target CLI shape:
 
@@ -306,48 +319,63 @@ tailedbox master join --code <join-code> --master-endpoint <host:port>
 Enrollment flow:
 
 1. Joiner parses the join code locally.
-   - The code payload gives code ID, allowed role, cluster ID, issuer node ID,
-     issuer fingerprint, and expiry.
+   - The standalone lab code format is `scj1.<payload>.<secret>`.
+   - The payload pins the expected master node ID and identity fingerprint.
    - The raw code secret is kept only in memory.
 
-2. Joiner sends `client_hello` in enrollment mode.
-   - Includes code ID, expected role, cluster ID, local node ID, local identity
-     fingerprint, X25519 ephemeral public key, nonce, and timestamp.
+2. Joiner sends `enroll_request`.
+   - Includes code ID, expected role, cluster ID, local node ID, local public
+     identity, optional public/VPC endpoints, nonce, and timestamp.
    - Does not include the raw code secret.
 
-3. Master sends `server_hello`.
-   - Includes master public identity and signature.
-   - Joiner verifies the master public identity fingerprint matches the issuer
-     fingerprint embedded in the join code.
-
-4. Joiner sends encrypted `enroll_request`.
-   - Includes raw join-code secret, full local public identity, expected role,
-     and a signature over the enrollment transcript.
-
-5. Master validates enrollment.
+3. Master validates the invite metadata.
    - Code ID exists.
-   - Secret hash matches.
    - Code is active, not expired, not already used, and role-scoped correctly.
-   - Joining node identity is not already trusted.
-   - The request signature validates.
+   - Cluster ID matches the master.
 
-6. Master commits enrollment state.
+4. Master sends signed `enroll_challenge`.
+   - Includes master public identity, advertised public/VPC endpoints, nonce,
+     timestamp, and an Ed25519 signature by the master identity.
+   - Includes the joiner's fresh client nonce so stale challenges cannot be
+     replayed into a new request.
+   - Joiner rejects the challenge unless the signer matches the master identity
+     pinned in the invite code.
+
+5. Joiner sends `enroll_proof`.
+   - Proof is HMAC-SHA256 over the enrollment transcript using
+     `SHA256(join-code-secret)` as the key.
+   - The raw join-code secret is not sent over the network.
+
+6. Master validates enrollment.
+   - Persisted invite hash matches the proof key.
+   - Joining node identity is not already trusted.
+   - The proof binds code ID, both identities, both endpoint sets, and both
+     nonces.
+
+7. Master commits enrollment state.
    - Writes trusted-node record.
    - Marks the join code used.
    - Records reconnect lease metadata.
    - Appends audit events.
 
-7. Master sends encrypted `enroll_accept`.
+8. Master sends signed `enroll_accept`.
    - Includes cluster ID, cluster name, master node ID, master public identity
      fingerprint, reconnect lease expiry, and known master endpoints.
+   - Includes the peer identity fingerprint plus both nonces so recorded accepts
+     cannot be replayed into later join attempts.
+   - Joiner rejects the accept unless the signer matches the master identity
+     pinned in the invite code.
 
-8. Joiner writes `joined_cluster.json`, updates cluster config endpoints, and
+9. Joiner writes `joined_cluster.json`, updates cluster config endpoints, and
    can start a normal enrolled mesh session.
 
 Enrollment failure handling:
 
 - The master returns `enroll_reject` with a sanitized reason.
 - The raw join-code secret is never logged.
+- The join code is not a reconnect credential. After successful enrollment,
+  reconnects use persisted trust and the normal signed encrypted session
+  handshake until trust is explicitly revoked or expires by policy.
 - Repeated failures should be rate limited by source address and code ID.
 - Audit events should record join attempts, success, and sanitized failures.
 
@@ -525,8 +553,9 @@ Suggested first implementation slice:
 3. Add UDP transport with encrypted `ping` and `pong`.
 4. Wire `agent run` to start the mesh service when mesh is enabled.
 5. Implement `tailedbox mesh status`, `peers`, `ping`, and `diagnose`.
-6. Add network enrollment as a follow-up slice that replaces
-   `--master-state-dir` with `--master-endpoint`.
+6. Add network enrollment as a follow-up root-app slice that replaces
+   `--master-state-dir` with `--master-endpoint`, using the standalone
+   `secureconn` lab enrollment flow as the implementation reference.
 
 The MVP is complete when two initialized and enrolled nodes can authenticate,
 establish an encrypted session, exchange `mesh ping`, report peer status, and

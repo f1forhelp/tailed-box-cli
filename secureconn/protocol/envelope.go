@@ -17,12 +17,17 @@ const (
 type PacketType uint8
 
 const (
-	PacketTypeClientHello   PacketType = 1
-	PacketTypeServerHello   PacketType = 2
-	PacketTypeClientAuth    PacketType = 3
-	PacketTypeEncryptedData PacketType = 4
-	PacketTypeRekey         PacketType = 5
-	PacketTypeClose         PacketType = 6
+	PacketTypeClientHello     PacketType = 1
+	PacketTypeServerHello     PacketType = 2
+	PacketTypeClientAuth      PacketType = 3
+	PacketTypeEncryptedData   PacketType = 4
+	PacketTypeRekey           PacketType = 5
+	PacketTypeClose           PacketType = 6
+	PacketTypeEnrollRequest   PacketType = 7
+	PacketTypeEnrollChallenge PacketType = 8
+	PacketTypeEnrollProof     PacketType = 9
+	PacketTypeEnrollAccept    PacketType = 10
+	PacketTypeEnrollReject    PacketType = 11
 )
 
 type SessionID [16]byte
@@ -108,7 +113,12 @@ func validPacketType(packetType PacketType) bool {
 		PacketTypeClientAuth,
 		PacketTypeEncryptedData,
 		PacketTypeRekey,
-		PacketTypeClose:
+		PacketTypeClose,
+		PacketTypeEnrollRequest,
+		PacketTypeEnrollProof,
+		PacketTypeEnrollAccept,
+		PacketTypeEnrollReject,
+		PacketTypeEnrollChallenge:
 		return true
 	default:
 		return false
