@@ -16,9 +16,6 @@ than separate binaries.
   lifecycle, status, and adapters.
 - `cmd/tailedbox`: binary entrypoint.
 
-Project context lives in [`CONTEXT.md`](CONTEXT.md). Secure connection module
-context lives in [`secureconn/CONTEXT.md`](secureconn/CONTEXT.md).
-
 ## Build And Test
 
 ```bash

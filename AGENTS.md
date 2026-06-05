@@ -16,30 +16,18 @@ secure connection foundation is reliable.
 
 Always start with:
 
-- `CONTEXT.md` for minimal product, repo, and global guardrails.
-
-Then read the feature context for the area you are touching:
-
-- `contexts/cli.md` for CLI, output, logging, status, and interactive terminal
-  UI.
-- `contexts/node-enrollment.md` for role initialization, node identity, local
-  state, join codes, enrollment, and audit records.
-- `contexts/agent.md` for foreground agent, heartbeat status, logs alias, and
-  systemd service management.
-- `secureconn/CONTEXT.md` for the secure connection module context map, then
-  the relevant `secureconn/contexts/*.md` file for module feature details.
-- `contexts/release.md` for installer, release, and packaging work.
-- `contexts/future-services.md` for PostgreSQL, future web UI, HA, firewall,
-  and other later infrastructure features.
+- `CONTEXT.md` for base Tailedbox app context.
+- `secureconn/CONTEXT.md` when touching secure connection module code or mesh
+  runtime behavior.
 
 ## Context Updates
 
-- Update the relevant feature context whenever behavior, architecture,
-  decisions, commands, limitations, or roadmap items change.
-- Keep root `CONTEXT.md` minimal. It should point to feature contexts instead of
-  duplicating feature progress.
+- Update `CONTEXT.md` whenever base app behavior, architecture, decisions,
+  commands, limitations, or roadmap items change.
+- Update `secureconn/CONTEXT.md` whenever secure connection behavior,
+  architecture, tests, limitations, or roadmap items change.
 - Keep this `AGENTS.md` as routing plus basic guardrails only. Do not add
-  feature-specific progress here.
+  detailed progress here.
 
 ## Core Guardrails
 
@@ -47,6 +35,8 @@ Then read the feature context for the area you are touching:
 - Keep master and worker behavior role-based, not separate binaries.
 - Prefer small, purpose-driven packages.
 - Preserve JSON output behavior when improving human-readable CLI output.
+- Keep README files limited to basic project/module information. Do not use
+  README files for context, progress tracking, roadmap, or detailed status.
 - Do not leak secrets, tokens, private keys, join codes, or decrypted payloads
   in logs or errors.
 - Do not persist raw join codes. Persist only hashes and minimal metadata.
