@@ -238,6 +238,7 @@ Install:
 ```bash
 ./install.sh
 TAILEDBOX_VERSION=v0.1.0 ./install.sh
+curl -sSL https://raw.githubusercontent.com/f1forhelp/tailed-box-cli/main/install.sh | sh
 ```
 
 ## Local State
@@ -330,6 +331,12 @@ Implemented:
 - `install.sh`
 - exact version installation through `TAILEDBOX_VERSION`
 - OS/architecture detection
+- OS/architecture detection runs before release download attempts, and
+  unsupported platforms fail with a clear message.
+- default latest-release install when no version is supplied
+- interactive release selection from the latest 10 GitHub Releases when a
+  terminal is available
+- custom version entry from the installer prompt
 - checksum verification with GitHub Release `checksums.txt`
 - Debian `amd64` package installation from GitHub Release assets
 

@@ -2,20 +2,8 @@
 set -eu
 
 REPO="${TAILEDBOX_REPO:-f1forhelp/tailed-box-cli}"
-VERSION="${TAILEDBOX_VERSION:-v0.1.0}"
-
-case "$VERSION" in
-	v*)
-		RELEASE_TAG="$VERSION"
-		VERSION_NUMBER="${VERSION#v}"
-		;;
-	*)
-		RELEASE_TAG="v${VERSION}"
-		VERSION_NUMBER="$VERSION"
-		;;
-esac
-
-BASE_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}"
+REQUESTED_VERSION="${TAILEDBOX_VERSION:-}"
+API_BASE="https://api.github.com/repos/${REPO}"
 
 log() {
 	printf '%s\n' "$*"
@@ -43,6 +31,111 @@ download() {
 	fi
 }
 
+http_get() {
+	url="$1"
+
+	if command -v curl >/dev/null 2>&1; then
+		curl -fsSL "$url"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -qO- "$url"
+	else
+		error "curl or wget is required to query release versions"
+	fi
+}
+
+normalize_version() {
+	version="$1"
+
+	case "$version" in
+		v*)
+			printf '%s\n' "$version"
+			;;
+		*)
+			printf 'v%s\n' "$version"
+			;;
+	esac
+}
+
+release_versions() {
+	http_get "${API_BASE}/releases?per_page=10" |
+		sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' |
+		sed -n '1,10p'
+}
+
+latest_version() {
+	http_get "${API_BASE}/releases/latest" |
+		sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' |
+		sed -n '1p'
+}
+
+select_release_version() {
+	if [ "$REQUESTED_VERSION" = "latest" ]; then
+		version="$(latest_version || true)"
+		[ -n "$version" ] || error "could not discover latest release for ${REPO}"
+		printf '%s\n' "$version"
+		return
+	fi
+
+	if [ -n "$REQUESTED_VERSION" ]; then
+		normalize_version "$REQUESTED_VERSION"
+		return
+	fi
+
+	versions="$(release_versions || true)"
+	if [ -z "$versions" ]; then
+		version="$(latest_version || true)"
+		[ -n "$version" ] || error "could not discover releases for ${REPO}; set TAILEDBOX_VERSION manually"
+		printf '%s\n' "$version"
+		return
+	fi
+
+	latest="$(printf '%s\n' "$versions" | sed -n '1p')"
+	if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
+		printf '%s\n' "$latest"
+		return
+	fi
+
+	{
+		printf '\nAvailable Tailedbox versions:\n'
+		i=1
+		printf '%s\n' "$versions" | while IFS= read -r version; do
+			if [ "$i" -eq 1 ]; then
+				printf '  %s) %s (latest)\n' "$i" "$version"
+			else
+				printf '  %s) %s\n' "$i" "$version"
+			fi
+			i=$((i + 1))
+		done
+		printf '  c) custom version\n'
+		printf '\nSelect version [1]: '
+	} >/dev/tty
+
+	IFS= read -r choice </dev/tty || choice=""
+	case "$choice" in
+		"")
+			printf '%s\n' "$latest"
+			return
+			;;
+		c|C|custom|CUSTOM)
+			printf 'Enter version, for example v0.1.0: ' >/dev/tty
+			IFS= read -r custom </dev/tty || custom=""
+			[ -n "$custom" ] || error "custom version cannot be empty"
+			normalize_version "$custom"
+			return
+			;;
+	esac
+
+	case "$choice" in
+		*[!0-9]*)
+			error "invalid version selection: ${choice}"
+			;;
+	esac
+
+	selected="$(printf '%s\n' "$versions" | sed -n "${choice}p")"
+	[ -n "$selected" ] || error "invalid version selection: ${choice}"
+	printf '%s\n' "$selected"
+}
+
 run_as_root() {
 	if [ "$(id -u)" -eq 0 ]; then
 		"$@"
@@ -61,7 +154,7 @@ detect_target() {
 		Linux)
 			;;
 		*)
-			error "OS not supported: ${kernel}. No Tailedbox build exists for this OS in ${RELEASE_TAG}."
+			error "OS not supported: ${kernel}. No Tailedbox build exists for this OS."
 			;;
 	esac
 
@@ -77,7 +170,7 @@ detect_target() {
 		debian)
 			;;
 		*)
-			error "OS not supported: ${os_id}. ${RELEASE_TAG} currently provides Debian builds only."
+			error "OS not supported: ${os_id}. Tailedbox currently provides Debian builds only."
 			;;
 	esac
 
@@ -86,7 +179,7 @@ detect_target() {
 			arch="amd64"
 			;;
 		*)
-			error "architecture not supported: ${machine}. No Debian build exists for this architecture in ${RELEASE_TAG}."
+			error "architecture not supported: ${machine}. No Debian build exists for this architecture."
 			;;
 	esac
 
@@ -126,6 +219,9 @@ install_debian_package() {
 
 main() {
 	target="$(detect_target)"
+	RELEASE_TAG="$(select_release_version)"
+	VERSION_NUMBER="${RELEASE_TAG#v}"
+	BASE_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}"
 
 	case "$target" in
 		debian:amd64)
