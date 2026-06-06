@@ -23,7 +23,7 @@ download() {
 	output="$2"
 
 	if command -v curl >/dev/null 2>&1; then
-		curl -fsSL --retry 3 -o "$output" "$url"
+		curl -fL --retry 3 -o "$output" "$url"
 	elif command -v wget >/dev/null 2>&1; then
 		wget -O "$output" "$url"
 	else
