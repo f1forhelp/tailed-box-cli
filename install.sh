@@ -23,7 +23,7 @@ download() {
 	output="$2"
 
 	if command -v curl >/dev/null 2>&1; then
-		curl -fL --retry 3 -o "$output" "$url"
+		curl -fsSL --retry 3 -o "$output" "$url"
 	elif command -v wget >/dev/null 2>&1; then
 		wget -O "$output" "$url"
 	else
@@ -234,6 +234,7 @@ main() {
 
 	tmpdir="$(mktemp -d)"
 	trap 'rm -rf "$tmpdir"' EXIT INT TERM
+	chmod 0755 "$tmpdir"
 
 	package_file="${tmpdir}/${asset}"
 	checksum_file="${tmpdir}/checksums.txt"
@@ -242,6 +243,7 @@ main() {
 	log "Downloading ${asset} from ${REPO} ${RELEASE_TAG}..."
 	download "${BASE_URL}/${asset}" "$package_file"
 	download "${BASE_URL}/checksums.txt" "$checksum_file"
+	chmod 0644 "$package_file" "$checksum_file"
 
 	log "Verifying checksum..."
 	verify_checksum "$checksum_file" "$asset" "$package_file"

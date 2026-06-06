@@ -339,6 +339,8 @@ Implemented:
 - custom version entry from the installer prompt
 - checksum verification with GitHub Release `checksums.txt`
 - Debian `amd64` package installation from GitHub Release assets
+- quiet release-asset downloads and apt-readable temporary package files to
+  avoid noisy `_apt` sandbox warnings during local `.deb` installs
 
 Not implemented yet:
 
