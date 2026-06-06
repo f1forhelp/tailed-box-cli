@@ -69,6 +69,11 @@ foundation is reliable.
 - Node identity uses Ed25519 keys generated locally.
 - The foreground agent is `tailedbox agent run`.
 - Local health is persisted to `<state-dir>/agent/status.json`.
+- Provisioning-oriented workers may run the Tailedbox agent with root
+  privileges for the MVP so the master can request package/service operations
+  such as installing PostgreSQL, Redis, or MySQL. This root-capable path must
+  stay structured and allowlisted: the master sends typed provisioning tasks,
+  not arbitrary remote shell commands.
 - Secure connection behavior and roadmap are tracked in
   `packages/link/CONTEXT.md`.
 
@@ -109,9 +114,10 @@ foundation is reliable.
   `agent run`, with Ctrl+C cancelling only the active stream command and
   returning to the TUI without cancelling the parent UI loop.
 - Guarded top-level uninstall command with dry-run, exact confirmation for
-  local file removal, forced local identity removal, and optional systemd
-  service removal. After confirmed uninstall, the system must be initialized
-  again before Tailedbox can use it.
+  local file removal, forced local identity removal, optional systemd service
+  removal, and optional install artifact cleanup for Debian packages and known
+  `tailedbox` command paths. After confirmed local uninstall, the system must
+  be initialized again before Tailedbox can use it.
 - Guided UI forms for runtime values such as join codes, master state
   directories, master endpoints, peer node IDs, and planned node approvals.
 - Visible no/cancel path on guided forms, including destructive uninstall
@@ -135,6 +141,10 @@ foundation is reliable.
 - Linux systemd unit generation and control commands.
 - Mesh CLI surfaces that integrate with the `link` module through the root app
   adapter.
+- Root `install.sh` release installer for supported GitHub Release assets. The
+  first installer target is Debian `amd64`; unsupported operating systems or
+  architectures fail with a clear message instead of downloading an unrelated
+  build.
 
 ## Commands
 
@@ -207,8 +217,11 @@ Uninstall:
 
 ```bash
 tailedbox uninstall --dry-run
+tailedbox uninstall --dry-run --all
 tailedbox uninstall --confirm-delete DELETE
 tailedbox uninstall --confirm-delete DELETE --systemd
+tailedbox uninstall --confirm-delete DELETE --install-artifacts
+tailedbox uninstall --confirm-delete DELETE --all
 ```
 
 Build and test:
@@ -218,6 +231,13 @@ go version
 go test ./...
 go test ./packages/link/...
 go build ./cmd/tailedbox
+```
+
+Install:
+
+```bash
+./install.sh
+TAILEDBOX_VERSION=v0.1.0 ./install.sh
 ```
 
 ## Local State
@@ -244,8 +264,11 @@ identity, trust, enrollment, mesh, and agent files that would be removed.
 `tailedbox uninstall --confirm-delete DELETE` removes those local files,
 including the Ed25519 node identity and public identity metadata. After that,
 the system is no longer a Tailedbox node until `tailedbox init` is run again.
-Add `--systemd` only when the installed systemd service should also be disabled
-and removed.
+Add `--systemd` when the installed systemd service should also be disabled and
+removed. Add `--install-artifacts` to purge the Debian package and remove known
+terminal command paths such as `/usr/bin/tailedbox` and
+`/usr/local/bin/tailedbox`. Use `--all` as the full cleanup shortcut for local
+files, systemd, the Debian package, and known command paths.
 
 Permissions:
 
@@ -262,6 +285,15 @@ Permissions:
 - Never persist raw join codes.
 - Store only join-code hashes and minimal metadata.
 - Master nodes store only joined nodes' public identity information.
+- For the provisioning MVP, allow worker agents to run with root-level
+  capability when needed for package installs, systemd service management,
+  firewall changes, and service configuration.
+- Remote provisioning must use signed, typed, allowlisted operations such as
+  `install postgres`, `install redis`, `install mysql`, `restart service`, or
+  `open firewall port`.
+- Do not make arbitrary remote shell execution the default control model.
+- Keep room for a future split between a restricted non-root network agent and
+  a narrow root helper, but do not block the MVP on that split.
 
 ## Current Limitations
 
@@ -273,27 +305,37 @@ Permissions:
 - Systemd install usually requires root.
 - Service control commands call `systemctl` and work only on Linux systems with
   systemd.
+- Full install artifact removal requires Linux with Debian package tools when
+  the Debian package is installed.
 - Network and node management namespaces are reserved but not implemented.
-- Release installer work has not started.
+- Remote master-to-worker provisioning is a planned direction, not implemented
+  yet. Workers will need root-level capability for host package/service
+  operations when that lands.
+- The release installer currently supports Debian `amd64` only.
 - PostgreSQL, web UI, master HA, firewall provider abstraction, and heavyweight
   infrastructure are not implemented.
 
 ## Roadmap
 
 1. Continue secure connection work tracked in `packages/link/CONTEXT.md`.
-2. Add a versioned GitHub release installer.
+2. Expand the GitHub release installer to additional operating systems and
+   architectures as release assets are published.
 3. Add future managed services only after the secure connection foundation is
    reliable.
 
 ## Release Installer Scope
 
-Not implemented yet:
+Implemented:
 
 - `install.sh`
-- exact version installation
+- exact version installation through `TAILEDBOX_VERSION`
 - OS/architecture detection
-- checksum verification
-- GitHub Release artifact layout
+- checksum verification with GitHub Release `checksums.txt`
+- Debian `amd64` package installation from GitHub Release assets
+
+Not implemented yet:
+
+- additional OS/architecture release assets
 - optional signature verification
 - self-update design
 
@@ -308,3 +350,16 @@ Do not start these before secure connection is reliable:
 - Secure remove-node flow and key/certificate rotation.
 - Kubernetes, external etcd, Consul, and external VPN dependencies are explicit
   non-goals for the MVP.
+
+When service provisioning begins, prefer typed commands over arbitrary shell:
+
+```bash
+tailedbox node provision <node-id> postgres
+tailedbox node provision <node-id> redis
+tailedbox node provision <node-id> mysql
+tailedbox node service <node-id> restart postgres
+```
+
+The worker side should validate the master identity, task type, requested
+service, and arguments before running privileged local steps. Provisioning
+results should stream or persist logs/status back to the master and audit log.

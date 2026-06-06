@@ -22,6 +22,7 @@ func TestDefaultUninstallActionsDefaultToCancel(t *testing.T) {
 	for _, title := range []string{
 		"System: uninstall local files",
 		"System: uninstall service and local files",
+		"System: uninstall everything",
 	} {
 		action, ok := findActionForTest(DefaultActions(), title)
 		if !ok {

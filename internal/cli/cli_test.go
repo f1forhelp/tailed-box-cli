@@ -16,6 +16,7 @@ import (
 
 	"github.com/tailedbox/link/control"
 	"github.com/tailedbox/link/store"
+	"github.com/tailedbox/tailedbox/internal/agent"
 	"github.com/tailedbox/tailedbox/internal/buildinfo"
 	"github.com/tailedbox/tailedbox/internal/config"
 	"github.com/tailedbox/tailedbox/internal/ui"
@@ -210,6 +211,32 @@ func TestUninstallDryRunDoesNotDelete(t *testing.T) {
 	for _, path := range uninstallLocalFilesForTest(dir) {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("dry run should not remove %s: %v", path, err)
+		}
+	}
+}
+
+func TestUninstallAllDryRunIncludesInstallArtifacts(t *testing.T) {
+	dir := t.TempDir()
+	paths := testPathsInDir(dir)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "master"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "uninstall", "--dry-run", "--all"), buildinfo.Info{}); err != nil {
+		t.Fatalf("uninstall all dry run failed: %v\nstderr: %s", err, stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		agent.DefaultSystemdUnitPath,
+		"Debian package tailedbox",
+		"/usr/bin/tailedbox",
+		"/usr/local/bin/tailedbox",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("dry-run output missing install artifact %q:\n%s", want, output)
 		}
 	}
 }

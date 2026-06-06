@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/tailedbox/link/control"
@@ -18,14 +20,23 @@ import (
 
 const uninstallConfirmation = "DELETE"
 
+const debianPackageName = "tailedbox"
+
+var installedBinaryPaths = []string{
+	"/usr/bin/tailedbox",
+	"/usr/local/bin/tailedbox",
+}
+
 type uninstallResult struct {
 	DryRun               bool     `json:"dry_run"`
 	Systemd              bool     `json:"systemd"`
+	InstallArtifacts     bool     `json:"install_artifacts"`
 	RequiresReinitialize bool     `json:"requires_reinitialize"`
 	Removed              []string `json:"removed,omitempty"`
 	WouldRemove          []string `json:"would_remove,omitempty"`
 	Skipped              []string `json:"skipped,omitempty"`
 	SystemdUnit          string   `json:"systemd_unit,omitempty"`
+	PackageName          string   `json:"package_name,omitempty"`
 }
 
 type uninstallTarget struct {
@@ -37,9 +48,9 @@ type uninstallTarget struct {
 func uninstallCommand() *command {
 	return &command{
 		name:        "uninstall",
-		usage:       "tailedbox uninstall [--dry-run] [--confirm-delete DELETE] [--systemd] [--unit-path /etc/systemd/system/tailedbox-agent.service]",
+		usage:       "tailedbox uninstall [--dry-run] [--confirm-delete DELETE] [--systemd] [--install-artifacts] [--all] [--unit-path /etc/systemd/system/tailedbox-agent.service]",
 		summary:     "Remove local Tailedbox identity and files",
-		description: "Remove local Tailedbox config, state, logs, sockets, node identity, trust records, and optional systemd unit.",
+		description: "Remove local Tailedbox config, state, logs, sockets, node identity, trust records, optional systemd unit, and optional installed package/binary artifacts.",
 		run:         runUninstall,
 	}
 }
@@ -50,6 +61,8 @@ func runUninstall(ctx context.Context, a *app, args []string) error {
 	dryRun := fs.Bool("dry-run", false, "Show what would be removed without deleting files")
 	confirm := fs.String("confirm-delete", "", "Required exact value DELETE to remove local files")
 	includeSystemd := fs.Bool("systemd", false, "Also disable and remove the systemd service")
+	includeInstallArtifacts := fs.Bool("install-artifacts", false, "Also purge the Debian package and remove known tailedbox command paths")
+	includeAll := fs.Bool("all", false, "Remove local files, systemd service, Debian package, and known tailedbox command paths")
 	unitPath := fs.String("unit-path", agent.DefaultSystemdUnitPath, "Systemd unit path to remove with --systemd")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -59,6 +72,10 @@ func runUninstall(ctx context.Context, a *app, args []string) error {
 	}
 	if !*dryRun && *confirm != uninstallConfirmation {
 		return fmt.Errorf("refusing to delete files without --confirm-delete %s", uninstallConfirmation)
+	}
+	if *includeAll {
+		*includeSystemd = true
+		*includeInstallArtifacts = true
 	}
 
 	paths, err := config.ResolvePaths(config.LoadOptions{
@@ -73,14 +90,22 @@ func runUninstall(ctx context.Context, a *app, args []string) error {
 	if err != nil {
 		return err
 	}
+	installTargets, err := installArtifactTargets()
+	if err != nil {
+		return err
+	}
 
 	result := uninstallResult{
 		DryRun:               *dryRun,
 		Systemd:              *includeSystemd,
+		InstallArtifacts:     *includeInstallArtifacts,
 		RequiresReinitialize: true,
 	}
 	if *includeSystemd {
 		result.SystemdUnit = *unitPath
+	}
+	if *includeInstallArtifacts {
+		result.PackageName = debianPackageName
 	}
 	if *dryRun {
 		for _, target := range targets {
@@ -88,6 +113,12 @@ func runUninstall(ctx context.Context, a *app, args []string) error {
 		}
 		if *includeSystemd {
 			result.WouldRemove = append(result.WouldRemove, *unitPath)
+		}
+		if *includeInstallArtifacts {
+			result.WouldRemove = append(result.WouldRemove, packageLabel(debianPackageName))
+			for _, target := range installTargets {
+				result.WouldRemove = append(result.WouldRemove, target.Path)
+			}
 		}
 		return writeUninstallResult(a, result)
 	}
@@ -97,6 +128,12 @@ func runUninstall(ctx context.Context, a *app, args []string) error {
 			return err
 		}
 		result.Removed = append(result.Removed, *unitPath)
+	}
+
+	if *includeInstallArtifacts {
+		if err := removeInstallArtifacts(ctx, &result, installTargets); err != nil {
+			return err
+		}
 	}
 
 	for _, target := range targets {
@@ -112,6 +149,98 @@ func runUninstall(ctx context.Context, a *app, args []string) error {
 	}
 	removeEmptyConfigDir(paths.ConfigFile)
 	return writeUninstallResult(a, result)
+}
+
+func installArtifactTargets() ([]uninstallTarget, error) {
+	targets := make([]uninstallTarget, 0, len(installedBinaryPaths))
+	for _, path := range installedBinaryPaths {
+		clean, err := validateRemoveFile(path, "installed binary")
+		if err != nil {
+			return nil, err
+		}
+		targets = append(targets, uninstallTarget{Path: clean, Kind: "installed binary"})
+	}
+	return dedupeTargets(targets), nil
+}
+
+func removeInstallArtifacts(ctx context.Context, result *uninstallResult, targets []uninstallTarget) error {
+	removedPackage, err := purgeDebianPackage(ctx, debianPackageName)
+	if err != nil {
+		return err
+	}
+	if removedPackage {
+		result.Removed = append(result.Removed, packageLabel(debianPackageName))
+	} else {
+		result.Skipped = append(result.Skipped, packageLabel(debianPackageName))
+	}
+
+	for _, target := range targets {
+		removed, err := removeUninstallTarget(target)
+		if err != nil {
+			return err
+		}
+		if removed {
+			result.Removed = append(result.Removed, target.Path)
+		} else {
+			result.Skipped = append(result.Skipped, target.Path)
+		}
+	}
+	return nil
+}
+
+func purgeDebianPackage(ctx context.Context, name string) (bool, error) {
+	if runtime.GOOS != "linux" {
+		return false, fmt.Errorf("install artifact removal is supported only on Linux, current OS is %s", runtime.GOOS)
+	}
+	if !commandAvailable("dpkg-query") {
+		return false, nil
+	}
+	installed, err := debianPackageInstalled(ctx, name)
+	if err != nil {
+		return false, err
+	}
+	if !installed {
+		return false, nil
+	}
+	switch {
+	case commandAvailable("apt-get"):
+		return true, runExternal(ctx, "apt-get", "purge", "-y", name)
+	case commandAvailable("dpkg"):
+		return true, runExternal(ctx, "dpkg", "--purge", name)
+	default:
+		return false, errors.New("apt-get or dpkg is required to purge the Debian package")
+	}
+}
+
+func debianPackageInstalled(ctx context.Context, name string) (bool, error) {
+	cmd := exec.CommandContext(ctx, "dpkg-query", "-W", "-f=${Status}", name)
+	output, err := cmd.CombinedOutput()
+	text := strings.TrimSpace(string(output))
+	if err != nil {
+		if text == "" || strings.Contains(text, "no packages found") {
+			return false, nil
+		}
+		return false, fmt.Errorf("check Debian package %q: %w\n%s", name, err, text)
+	}
+	return strings.Contains(text, "install ok installed"), nil
+}
+
+func runExternal(ctx context.Context, name string, args ...string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s %s failed: %w\n%s", name, strings.Join(args, " "), err, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+func commandAvailable(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
+func packageLabel(name string) string {
+	return "Debian package " + name
 }
 
 func uninstallTargets(paths config.Paths) ([]uninstallTarget, error) {
@@ -253,6 +382,9 @@ func writeUninstallResult(a *app, result uninstallResult) error {
 		writePathList(a.stdout, a.theme, "Would remove", result.WouldRemove)
 		fmt.Fprintln(a.stdout)
 		fmt.Fprintln(a.stdout, a.theme.NoteLine("This includes the local node identity, trust, enrollment, mesh, and agent state."))
+		if result.InstallArtifacts {
+			fmt.Fprintln(a.stdout, a.theme.NoteLine("This also includes the Debian package and known tailedbox command paths."))
+		}
 		fmt.Fprintln(a.stdout, a.theme.NoteLine("After uninstall, this system must be initialized again before Tailedbox can use it."))
 		fmt.Fprintln(a.stdout)
 		fmt.Fprintf(a.stdout, "Run with %s to delete these files.\n", a.theme.Command("--confirm-delete "+uninstallConfirmation))
@@ -267,6 +399,9 @@ func writeUninstallResult(a *app, result uninstallResult) error {
 	}
 	fmt.Fprintln(a.stdout)
 	fmt.Fprintln(a.stdout, a.theme.NoteLine("The local node identity was removed. Run tailedbox init before using this system again."))
+	if result.InstallArtifacts {
+		fmt.Fprintln(a.stdout, a.theme.NoteLine("The installed package and known terminal command paths were also removed when present."))
+	}
 	return nil
 }
 

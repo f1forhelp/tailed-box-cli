@@ -1,5 +1,6 @@
 # Local build artifacts
 /tailedbox
+/dist/
 
 # Go test and coverage artifacts
 *.test

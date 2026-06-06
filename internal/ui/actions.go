@@ -390,8 +390,8 @@ func DefaultActions() []Action {
 		},
 		{
 			Title:       "System: uninstall all dry run",
-			Description: "Preview identity/state cleanup plus systemd service removal.",
-			Args:        []string{"uninstall", "--dry-run", "--systemd"},
+			Description: "Preview full cleanup of local files, systemd service, package, and terminal command paths.",
+			Args:        []string{"uninstall", "--dry-run", "--all"},
 		},
 		{
 			Title:         "System: uninstall local files",
@@ -416,6 +416,20 @@ func DefaultActions() []Action {
 				{
 					Label:       "Confirm delete",
 					Description: "Type DELETE to remove the service and local Tailedbox files.",
+					Flag:        "confirm-delete",
+					Required:    true,
+				},
+			},
+		},
+		{
+			Title:         "System: uninstall everything",
+			Description:   "Delete local files, remove systemd, purge the Debian package, and remove known terminal command paths.",
+			Args:          []string{"uninstall", "--all"},
+			DefaultCancel: true,
+			Inputs: []ActionInput{
+				{
+					Label:       "Confirm delete",
+					Description: "Type DELETE to remove all Tailedbox files and install artifacts.",
 					Flag:        "confirm-delete",
 					Required:    true,
 				},
