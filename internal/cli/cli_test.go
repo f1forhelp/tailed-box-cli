@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -158,14 +159,142 @@ func TestInteractiveMenuItemsMapToCLICommands(t *testing.T) {
 		if action.Args == nil {
 			continue
 		}
-		parsed, help, err := a.parseGlobalFlags(action.Args)
-		if err != nil {
-			t.Fatalf("menu action %q has invalid args %v: %v", action.Title, action.Args, err)
+		menuActionCommandPath(t, a, action)
+	}
+}
+
+func TestInteractiveMenuCoversCLICommandLeaves(t *testing.T) {
+	a := &app{}
+	covered := make(map[string]bool)
+	for _, action := range ui.DefaultActions() {
+		if action.Args == nil {
+			continue
 		}
-		cmd, _ := rootCommand().find(parsed)
-		if !help && cmd.run == nil {
-			t.Fatalf("menu action %q does not resolve to a runnable CLI command: %v", action.Title, action.Args)
+		covered[menuActionCommandPath(t, a, action)] = true
+	}
+
+	expected := make(map[string]bool)
+	collectRunnableCommandPaths(rootCommand(), expected)
+
+	var missing []string
+	for path := range expected {
+		if !covered[path] {
+			missing = append(missing, path)
 		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		t.Fatalf("interactive menu is missing CLI command leaves:\n%s", strings.Join(missing, "\n"))
+	}
+}
+
+func TestUninstallDryRunDoesNotDelete(t *testing.T) {
+	dir := t.TempDir()
+	paths := testPathsInDir(dir)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "master"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "uninstall", "--dry-run"), buildinfo.Info{}); err != nil {
+		t.Fatalf("uninstall dry run failed: %v\nstderr: %s", err, stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{"Dry run", "Would remove", "local node identity", "initialized again", filepath.Join(dir, "config.json"), filepath.Join(dir, "state"), filepath.Join(dir, "logs")} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, output)
+		}
+	}
+	for _, path := range uninstallLocalFilesForTest(dir) {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("dry run should not remove %s: %v", path, err)
+		}
+	}
+}
+
+func TestUninstallRequiresConfirmation(t *testing.T) {
+	dir := t.TempDir()
+	paths := testPathsInDir(dir)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "worker"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	err := Execute(context.Background(), &stdout, &stderr, append(paths, "uninstall"), buildinfo.Info{})
+	if err == nil {
+		t.Fatal("expected uninstall without confirmation to fail")
+	}
+	if !strings.Contains(err.Error(), "--confirm-delete DELETE") {
+		t.Fatalf("unexpected uninstall confirmation error: %v", err)
+	}
+	for _, path := range uninstallLocalFilesForTest(dir) {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("unconfirmed uninstall should not remove %s: %v", path, err)
+		}
+	}
+}
+
+func TestUninstallRemovesLocalFiles(t *testing.T) {
+	dir := t.TempDir()
+	paths := testPathsInDir(dir)
+	var stdout, stderr bytes.Buffer
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "init", "--role", "master"), buildinfo.Info{}); err != nil {
+		t.Fatalf("init failed: %v\nstderr: %s", err, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute(context.Background(), &stdout, &stderr, append(paths, "uninstall", "--confirm-delete", "DELETE"), buildinfo.Info{}); err != nil {
+		t.Fatalf("uninstall failed: %v\nstderr: %s", err, stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{"Removed local Tailedbox files", "local node identity", "tailedbox init"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("uninstall output missing %q:\n%s", want, output)
+		}
+	}
+	for _, path := range uninstallLocalFilesForTest(dir) {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("expected %s to be removed, stat err: %v", path, err)
+		}
+	}
+}
+
+func uninstallLocalFilesForTest(dir string) []string {
+	return []string{
+		filepath.Join(dir, "config.json"),
+		filepath.Join(dir, "state"),
+		filepath.Join(dir, "logs"),
+		filepath.Join(dir, "state", "node.json"),
+		filepath.Join(dir, "state", "node_identity_public.json"),
+		filepath.Join(dir, "state", "secrets", "node_identity_ed25519.pem"),
+		filepath.Join(dir, "state", "agent", "config.json"),
+	}
+}
+
+func menuActionCommandPath(t *testing.T, a *app, action ui.Action) string {
+	t.Helper()
+	parsed, help, err := a.parseGlobalFlags(action.Args)
+	if err != nil {
+		t.Fatalf("menu action %q has invalid args %v: %v", action.Title, action.Args, err)
+	}
+	cmd, _ := rootCommand().find(parsed)
+	if !help && cmd.run == nil {
+		t.Fatalf("menu action %q does not resolve to a runnable CLI command: %v", action.Title, action.Args)
+	}
+	return cmd.path()
+}
+
+func collectRunnableCommandPaths(cmd *command, paths map[string]bool) {
+	if cmd.run != nil {
+		paths[cmd.path()] = true
+	}
+	for _, child := range cmd.children {
+		collectRunnableCommandPaths(child, paths)
 	}
 }
 

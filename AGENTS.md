@@ -35,6 +35,21 @@ Always start with:
 - Keep master and worker behavior role-based, not separate binaries.
 - Prefer small, purpose-driven packages.
 - Preserve JSON output behavior when improving human-readable CLI output.
+- Keep the interactive terminal UI as a launcher for normal CLI commands; every
+  UI action must map to a command and every CLI leaf should be reachable from
+  the UI.
+- UI forms may collect values for non-expert users, but they must still build
+  and dispatch normal CLI-equivalent arguments.
+- Treat the terminal UI as a complete navigable control app, not a flat help
+  screen: show sections first, let Enter reveal that section's actions, and
+  keep action details and forms easy for non-expert operators.
+- Keep the terminal UI compact: prefer minimal padding, short helper text, and
+  space-efficient section/action lists.
+- The no-args terminal UI should remain in an app loop: quick/form commands
+  show a result screen and return to the menu; streaming commands need an
+  explicit stop/back path.
+- In the terminal UI, Esc should go back one level. On the primary menu it
+  should open a quit confirmation instead of exiting immediately.
 - Keep README files limited to basic project/module information. Do not use
   README files for context, progress tracking, roadmap, or detailed status.
 - Do not leak secrets, tokens, private keys, join codes, or decrypted payloads

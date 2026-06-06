@@ -35,6 +35,36 @@ foundation is reliable.
 - Single binary entrypoint: `cmd/tailedbox`.
 - Command dispatch lives under `internal/cli`.
 - Interactive terminal UI lives under `internal/ui`.
+- The interactive terminal UI is a launcher over the same command dispatcher:
+  every UI action maps to normal CLI args, and every runnable CLI leaf command
+  should have a reachable UI action.
+- The UI should also be usable by non-expert operators: when commands need
+  runtime values, the TUI may show guided forms, but those forms must still
+  build normal CLI-equivalent arguments.
+- The TUI should feel like a complete terminal control app, with a
+  sections-first navigation flow: the primary screen lists sections, Enter
+  opens that section's actions in the same panel, and selected actions show
+  compact details, command previews, or guided forms.
+- The TUI should stay compact: minimal padding, short helper text, tight panel
+  gaps, and space-efficient section/action lists. Section and action rows use
+  simple ordinal prefixes instead of count badges.
+- TUI color should stay minimal and semantic: use it to distinguish focus,
+  hints, commands, success, warnings, and errors, not as decoration.
+- The no-args TUI runs as a persistent app loop. Quick/form commands execute
+  through the normal CLI dispatcher, show an in-app result screen, and return to
+  the menu. Streaming commands run in the foreground with a stop path and then
+  return to the TUI.
+- Guided forms include a visible `No / cancel` row in addition to Esc so
+  non-expert users can explicitly back out without running the command.
+- Destructive guided forms should default focus to `No / cancel`; the user must
+  deliberately move to the confirmation input before running the command.
+- Esc is treated as back-one-level in the TUI. On the primary menu, Esc or q
+  opens a quit confirmation instead of exiting immediately. Result screens use
+  Esc/b to return to the originating opened section/action list so Enter stays
+  reserved for activate/submit behavior.
+- This command/UI parity is intentional groundwork for future MCP control:
+  machine clients should be able to discover and invoke the same command
+  surfaces without relying on TUI-only behavior.
 - Local role is selected by initialization and persisted in local config/state.
 - Node identity uses Ed25519 keys generated locally.
 - The foreground agent is `tailedbox agent run`.
@@ -54,12 +84,39 @@ foundation is reliable.
   - `logs`
   - `debug`
   - `mesh`
+  - `uninstall`
   - `network`
   - `node`
   - `pg`
 - Structured JSONL logging with redaction.
 - Human-readable and JSON-capable command output.
 - Bubble Tea interactive no-args menu for real terminals.
+- Interactive menu coverage for each runnable CLI leaf command, including
+  planned command surfaces.
+- Terminal app shell with hierarchical sections-first navigation: the primary
+  screen lists sections, Enter opens active-section actions in the same panel,
+  Esc backs to sections, and selected actions show compact details plus command
+  previews.
+- Compact, width-safe TUI renderer with one-line header, tight panel padding,
+  short helper text, and no side-by-side menu columns.
+- Minimal semantic TUI color roles for hints, command blocks, completed,
+  stopped, and failed result states.
+- Persistent no-args TUI loop with in-app result screens for completed commands.
+- Result screens remember their originating action and return to the same
+  opened section with that action still selected.
+- Quit confirmation dialog from the primary TUI screen.
+- Streaming action handling for foreground commands such as `logs --follow` and
+  `agent run`, with Ctrl+C cancelling only the active stream command and
+  returning to the TUI without cancelling the parent UI loop.
+- Guarded top-level uninstall command with dry-run, exact confirmation for
+  local file removal, forced local identity removal, and optional systemd
+  service removal. After confirmed uninstall, the system must be initialized
+  again before Tailedbox can use it.
+- Guided UI forms for runtime values such as join codes, master state
+  directories, master endpoints, peer node IDs, and planned node approvals.
+- Visible no/cancel path on guided forms, including destructive uninstall
+  confirmation forms. Destructive uninstall forms default focus to no/cancel.
+- Tests that enforce UI-to-CLI command validity and CLI-leaf-to-UI coverage.
 - Plain help fallback for non-interactive execution.
 - Durable master/worker role initialization.
 - Durable local node ID.
@@ -146,6 +203,14 @@ tailedbox debug logs enable
 tailedbox debug logs disable
 ```
 
+Uninstall:
+
+```bash
+tailedbox uninstall --dry-run
+tailedbox uninstall --confirm-delete DELETE
+tailedbox uninstall --confirm-delete DELETE --systemd
+```
+
 Build and test:
 
 ```bash
@@ -173,6 +238,14 @@ After initialization, local state includes:
   node_identity_public.json
   secrets/node_identity_ed25519.pem
 ```
+
+`tailedbox uninstall --dry-run` previews the local config, state, log, socket,
+identity, trust, enrollment, mesh, and agent files that would be removed.
+`tailedbox uninstall --confirm-delete DELETE` removes those local files,
+including the Ed25519 node identity and public identity metadata. After that,
+the system is no longer a Tailedbox node until `tailedbox init` is run again.
+Add `--systemd` only when the installed systemd service should also be disabled
+and removed.
 
 Permissions:
 

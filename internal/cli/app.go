@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -68,14 +71,7 @@ func (a *app) run(ctx context.Context, args []string) error {
 		return nil
 	}
 	if len(parsed) == 0 && cmd.run == nil && a.interactive {
-		selectedArgs, err := ui.Run(a.stdin, a.stdout)
-		if err != nil {
-			return err
-		}
-		if len(selectedArgs) == 0 {
-			return nil
-		}
-		return a.run(ctx, selectedArgs)
+		return a.runInteractiveLoop(ctx)
 	}
 	if cmd.run == nil {
 		cmd.printHelp(a.stdout, a.theme)
@@ -99,6 +95,78 @@ func (a *app) run(ctx context.Context, args []string) error {
 		}
 	}
 	return err
+}
+
+func (a *app) runInteractiveLoop(ctx context.Context) error {
+	var lastResult *ui.CommandResult
+	for {
+		selection, err := ui.Run(a.stdin, a.stdout, lastResult)
+		if err != nil {
+			return err
+		}
+		if selection.Quit || len(selection.Args) == 0 {
+			return nil
+		}
+		lastResult = a.runInteractiveSelection(ctx, selection)
+	}
+}
+
+func (a *app) runInteractiveSelection(ctx context.Context, selection ui.Selection) *ui.CommandResult {
+	if selection.Action.EffectiveKind() == ui.ActionKindStream {
+		return a.runInteractiveStream(ctx, selection)
+	}
+	var stdout, stderr bytes.Buffer
+	commandApp := a.commandApp(&stdout, &stderr)
+	err := commandApp.run(ctx, selection.Args)
+	return commandResult(selection, stdout.String(), stderr.String(), err, false)
+}
+
+func (a *app) runInteractiveStream(ctx context.Context, selection ui.Selection) *ui.CommandResult {
+	fmt.Fprintln(a.stdout)
+	fmt.Fprintf(a.stdout, "Running %s. Press Ctrl+C to stop and return to the Tailedbox UI.\n\n", selection.Action.Title)
+
+	streamCtx, stopStream := signal.NotifyContext(ctx, os.Interrupt)
+	defer stopStream()
+
+	commandApp := a.commandApp(a.stdout, a.stderr)
+	err := commandApp.run(streamCtx, selection.Args)
+	stopped := streamCtx.Err() != nil
+	if stopped && errors.Is(err, context.Canceled) {
+		err = nil
+	}
+	if stopped {
+		fmt.Fprintln(a.stdout)
+		fmt.Fprintln(a.stdout, "Stopped. Returning to the Tailedbox UI.")
+	}
+	return commandResult(selection, "", "", err, stopped)
+}
+
+func (a *app) commandApp(stdout, stderr io.Writer) *app {
+	return &app{
+		stdin:      a.stdin,
+		stdout:     stdout,
+		stderr:     stderr,
+		build:      a.build,
+		theme:      newTheme(stdout),
+		configPath: a.configPath,
+		stateDir:   a.stateDir,
+		logDir:     a.logDir,
+	}
+}
+
+func commandResult(selection ui.Selection, stdout, stderr string, err error, stopped bool) *ui.CommandResult {
+	result := &ui.CommandResult{
+		Title:   selection.Action.Title,
+		Args:    append([]string(nil), selection.Args...),
+		Stdout:  stdout,
+		Stderr:  stderr,
+		Kind:    selection.Action.EffectiveKind(),
+		Stopped: stopped,
+	}
+	if err != nil {
+		result.Error = err.Error()
+	}
+	return result
 }
 
 func (a *app) initRuntime() error {

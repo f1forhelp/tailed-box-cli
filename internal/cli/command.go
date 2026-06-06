@@ -169,6 +169,7 @@ func rootCommand() *command {
 		withGroup("Operations", logsCommand()),
 		withGroup("Operations", debugCommand()),
 		withGroup("Operations", meshCommand()),
+		withGroup("Operations", uninstallCommand()),
 		withGroup("Future Surfaces", networkCommand()),
 		withGroup("Future Surfaces", nodeCommand()),
 		withGroup("Future Surfaces", pgCommand()),

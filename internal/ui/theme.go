@@ -17,6 +17,10 @@ type theme struct {
 	command  lipgloss.Style
 	accent   lipgloss.Style
 	muted    lipgloss.Style
+	label    lipgloss.Style
+	success  lipgloss.Style
+	warning  lipgloss.Style
+	danger   lipgloss.Style
 }
 
 func newTheme(w io.Writer) theme {
@@ -34,6 +38,10 @@ func newTheme(w io.Writer) theme {
 			command:  base.Copy(),
 			accent:   base.Copy(),
 			muted:    base.Copy(),
+			label:    base.Copy(),
+			success:  base.Copy(),
+			warning:  base.Copy(),
+			danger:   base.Copy(),
 		}
 	}
 
@@ -46,6 +54,10 @@ func newTheme(w io.Writer) theme {
 		command:  base.Copy().Bold(true).Foreground(lipgloss.Color("75")),
 		accent:   base.Copy().Foreground(lipgloss.Color("86")),
 		muted:    base.Copy().Foreground(lipgloss.Color("245")),
+		label:    base.Copy().Foreground(lipgloss.Color("147")),
+		success:  base.Copy().Foreground(lipgloss.Color("114")),
+		warning:  base.Copy().Foreground(lipgloss.Color("215")),
+		danger:   base.Copy().Foreground(lipgloss.Color("203")),
 	}
 }
 
@@ -71,6 +83,22 @@ func (t theme) Accent(value string) string {
 
 func (t theme) Muted(value string) string {
 	return t.render(t.muted, value)
+}
+
+func (t theme) Label(value string) string {
+	return t.render(t.label, value)
+}
+
+func (t theme) Success(value string) string {
+	return t.render(t.success, value)
+}
+
+func (t theme) Warning(value string) string {
+	return t.render(t.warning, value)
+}
+
+func (t theme) Danger(value string) string {
+	return t.render(t.danger, value)
 }
 
 func (t theme) render(style lipgloss.Style, value string) string {
