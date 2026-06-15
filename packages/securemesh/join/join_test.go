@@ -103,6 +103,36 @@ func TestStoreRejectsInvalidWrongRoleAndWrongNetwork(t *testing.T) {
 	}
 }
 
+func TestStoreDoesNotConsumeWhenBeforeConsumeFails(t *testing.T) {
+	store := newTestStore(t, time.Now)
+	code, record, err := store.Create(validCreateRequest())
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	callbackErr := errors.New("callback failed")
+	_, err = store.ValidateAndConsumeWith(ConsumeRequest{
+		Code:         code,
+		NetworkID:    record.NetworkID,
+		ExpectedRole: record.ExpectedRole,
+		ConsumedBy:   identity.NodeID("node_consumer"),
+	}, func(Record) error { return callbackErr })
+	if !errors.Is(err, callbackErr) {
+		t.Fatalf("ValidateAndConsumeWith err = %v, want callback error", err)
+	}
+	result, err := store.ValidateAndConsume(ConsumeRequest{
+		Code:         code,
+		NetworkID:    record.NetworkID,
+		ExpectedRole: record.ExpectedRole,
+		ConsumedBy:   identity.NodeID("node_consumer"),
+	})
+	if err != nil {
+		t.Fatalf("ValidateAndConsume after callback error: %v", err)
+	}
+	if !result.Consumed {
+		t.Fatal("code was not consumed on retry")
+	}
+}
+
 func TestNoMandatoryExpiry(t *testing.T) {
 	old := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	store := newTestStore(t, func() time.Time { return old })

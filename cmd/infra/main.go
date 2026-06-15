@@ -29,6 +29,8 @@ type actionSet struct {
 	revokePeer      func(context.Context, secureidentity.NodeID, secureidentity.Role, string, ...actions.Option) (actions.Result, error)
 	prepareMesh     func(context.Context, string, ...actions.Option) (actions.MeshListener, error)
 	pingMesh        func(context.Context, string, ...actions.Option) (actions.Result, error)
+	preparePairing  func(context.Context, string, ...actions.Option) (actions.PairingListener, error)
+	joinPairing     func(context.Context, string, string, secureidentity.Role, secureidentity.NodeID, ...actions.Option) (actions.Result, error)
 }
 
 var cliActions = actionSet{
@@ -44,6 +46,8 @@ var cliActions = actionSet{
 	revokePeer:      actions.RevokePeer,
 	prepareMesh:     actions.PrepareMeshListener,
 	pingMesh:        actions.PingMesh,
+	preparePairing:  actions.PreparePairingListener,
+	joinPairing:     actions.JoinPairing,
 }
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
@@ -59,6 +63,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	options := actionOptions(configRoot)
 	if len(remaining) >= 2 && remaining[0] == "mesh" && remaining[1] == "listen" {
 		return runMeshListen(ctx, remaining[2:], options, stdout, stderr)
+	}
+	if len(remaining) >= 2 && remaining[0] == "pair" && remaining[1] == "listen" {
+		return runPairListen(ctx, remaining[2:], options, stdout, stderr)
 	}
 	result, err := dispatch(ctx, remaining, options, stderr)
 	if err != nil {
@@ -98,8 +105,37 @@ func dispatch(ctx context.Context, args []string, options []actions.Option, stde
 		return dispatchPeer(ctx, args[1:], options, stderr)
 	case "mesh":
 		return dispatchMesh(ctx, args[1:], options, stderr)
+	case "pair":
+		return dispatchPair(ctx, args[1:], options, stderr)
 	default:
 		return actions.Result{}, fmt.Errorf("unknown command %q", args[0])
+	}
+}
+
+func dispatchPair(ctx context.Context, args []string, options []actions.Option, stderr io.Writer) (actions.Result, error) {
+	if len(args) == 0 {
+		return actions.Result{}, fmt.Errorf("usage: infra pair listen|join")
+	}
+	switch args[0] {
+	case "join":
+		flags := flag.NewFlagSet("pair join", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		endpoint := flags.String("endpoint", "", "master pairing endpoint")
+		code := flags.String("code", "", "join code")
+		roleValue := flags.String("role", "", "joining node role")
+		masterNode := flags.String("master-node", "", "expected master node id")
+		if err := flags.Parse(args[1:]); err != nil {
+			return actions.Result{}, err
+		}
+		role, err := secureidentity.ParseRole(*roleValue)
+		if err != nil {
+			return actions.Result{}, err
+		}
+		return cliActions.joinPairing(ctx, *endpoint, *code, role, secureidentity.NodeID(*masterNode), options...)
+	case "listen":
+		return actions.Result{}, fmt.Errorf("pair listen is handled by the listener runner")
+	default:
+		return actions.Result{}, fmt.Errorf("usage: infra pair listen|join")
 	}
 }
 
@@ -263,6 +299,30 @@ func runMeshListen(ctx context.Context, args []string, options []actions.Option,
 	return 0
 }
 
+func runPairListen(ctx context.Context, args []string, options []actions.Option, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("pair listen", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	bind := flags.String("bind", "", "listen address")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	listener, err := cliActions.preparePairing(ctx, *bind, options...)
+	if err != nil {
+		fmt.Fprintf(stderr, "error: %v\n", err)
+		return 1
+	}
+	defer listener.Close()
+	fmt.Fprintln(stdout, "pairing listener started")
+	fmt.Fprintf(stdout, "equivalent CLI: %s\n", listener.EquivalentCLI)
+	fmt.Fprintf(stdout, "bind: %s\n", listener.Bind)
+	fmt.Fprintf(stdout, "address: %s\n", listener.Addr)
+	if err := listener.Serve(ctx); err != nil {
+		fmt.Fprintf(stderr, "error: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
 func printResult(stdout io.Writer, result actions.Result) {
 	if result.RawOutput != "" {
 		fmt.Fprint(stdout, result.RawOutput)
@@ -305,5 +365,5 @@ func printResult(stdout io.Writer, result actions.Result) {
 
 func usage(stderr io.Writer) {
 	fmt.Fprintln(stderr, "usage: infra [--config-root path] <command>")
-	fmt.Fprintln(stderr, "commands: network init, network import, identity init, identity show, join-code create, join-code consume, peer export, peer add, peer list, peer revoke, mesh listen, mesh ping")
+	fmt.Fprintln(stderr, "commands: network init, network import, identity init, identity show, join-code create, join-code consume, peer export, peer add, peer list, peer revoke, mesh listen, mesh ping, pair listen, pair join")
 }

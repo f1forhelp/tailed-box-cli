@@ -20,13 +20,13 @@ Implemented now:
 - Local revocation records and revoked-node checks.
 - Peer active/revoked local model.
 - Runtime TLS identity binding for mesh peers.
+- Online join-code pairing over TLS/TCP with explicit master node ID pinning.
 - Minimal authenticated TLS/TCP mesh ping for CLI testing.
 - Package-level authenticated QUIC/TLS mesh ping over reliable streams.
 
 Not implemented yet:
 
-- Online pairing handshake.
-- Secret transmission.
+- Application secret transmission beyond pairing credentials.
 - Remote command execution.
 - Service installation or service-management messages.
 - Multi-master consensus, quorum, or revocation propagation.
@@ -79,7 +79,7 @@ Transport and pairing handshakes must:
 - Avoid sending join codes in plaintext over unauthenticated channels.
 - Include replay protection, key separation, and key rotation.
 
-The online pairing design is intentionally not implemented yet. A reviewed PAKE/OPAQUE-style pairing protocol or reviewed Noise-style flow with explicit master identity binding should be selected before network pairing is implemented.
+Current online pairing requires the joining node to pin the expected master node ID out of band before sending the join code. The join code is sent only inside that verified TLS session. A future PAKE/OPAQUE-style pairing protocol may remove the need to send the code itself while preserving verifier-only persistence.
 
 ## Revocation Model
 

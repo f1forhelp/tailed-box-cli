@@ -90,6 +90,60 @@ func TestPeerExportAddAndImportNetwork(t *testing.T) {
 	}
 }
 
+func TestPairingActionsJoinWorker(t *testing.T) {
+	ctx := context.Background()
+	masterOptions := []Option{WithConfigRoot(t.TempDir())}
+	workerOptions := []Option{WithConfigRoot(t.TempDir())}
+
+	if _, err := InitNetwork(ctx, masterOptions...); err != nil {
+		t.Fatalf("InitNetwork: %v", err)
+	}
+	masterIdentity, err := InitIdentity(ctx, secureidentity.RoleMaster, masterOptions...)
+	if err != nil {
+		t.Fatalf("InitIdentity master: %v", err)
+	}
+	joinCode, err := CreateJoinCode(ctx, secureidentity.RoleWorker, masterOptions...)
+	if err != nil {
+		t.Fatalf("CreateJoinCode: %v", err)
+	}
+	listener, err := PreparePairingListener(ctx, "127.0.0.1:0", masterOptions...)
+	if err != nil {
+		t.Fatalf("PreparePairingListener: %v", err)
+	}
+	defer listener.Close()
+	serveCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	serveDone := make(chan error, 1)
+	go func() { serveDone <- listener.Serve(serveCtx) }()
+
+	result, err := JoinPairing(ctx, listener.Addr, joinCode.SecretValue, secureidentity.RoleWorker, secureidentity.NodeID(masterIdentity.Fields["node_id"]), workerOptions...)
+	if err != nil {
+		t.Fatalf("JoinPairing: %v", err)
+	}
+	expectedCLI := "infra pair join --endpoint " + listener.Addr + " --code <code> --role worker --master-node " + masterIdentity.Fields["node_id"]
+	if result.EquivalentCLI != expectedCLI {
+		t.Fatalf("join equivalent = %q", result.EquivalentCLI)
+	}
+	masterPeers, err := ListPeers(ctx, masterOptions...)
+	if err != nil {
+		t.Fatalf("ListPeers master: %v", err)
+	}
+	if masterPeers.Fields["count"] != "1" {
+		t.Fatalf("master peer count = %q, want 1", masterPeers.Fields["count"])
+	}
+	workerPeers, err := ListPeers(ctx, workerOptions...)
+	if err != nil {
+		t.Fatalf("ListPeers worker: %v", err)
+	}
+	if workerPeers.Fields["count"] != "1" {
+		t.Fatalf("worker peer count = %q, want 1", workerPeers.Fields["count"])
+	}
+	cancel()
+	if err := <-serveDone; err != nil {
+		t.Fatalf("Serve: %v", err)
+	}
+}
+
 func TestWorkerCannotCreateJoinCode(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()

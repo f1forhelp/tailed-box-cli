@@ -1,6 +1,6 @@
-# Online Pairing Handshake Design
+# Online Pairing
 
-This document records the recommended direction for a future online pairing milestone. It is design-only and does not implement transport, secret transmission, service management, NAT traversal, or production mesh networking.
+This document records the current online pairing model and future hardening direction. It does not cover service management, remote command execution, NAT traversal, website, MCP, Docker/Postgres/Redis, or production operations.
 
 ## Goal
 
@@ -12,23 +12,23 @@ Define a secure initial pairing direction that lets an authorized master admit a
 - Used join codes cannot be reused.
 - Reconnects after restart use persistent node identity, not the join code.
 - Revoked nodes cannot reconnect with old credentials.
-- Future transport must be designed to resist MITM.
+- Pairing must resist MITM.
 
 ## Non-Goals
 
-- No production encrypted transport implementation.
+- No service-management protocol.
 - No remote command execution.
 - No service management.
-- No secret transmission beyond future handshake design.
+- No application secret transmission.
 - No website, MCP server, Docker, Postgres, Redis, or logging features.
 - No multi-master consensus or revocation quorum.
 - No external VPN, kernel VPN, OS-managed VPN config, or shelling out to networking tools.
 
 ## Threat Model
 
-The future pairing flow should assume an attacker may observe, delay, replay, or modify network traffic. The attacker may also attempt to race a legitimate node using a stolen or copied join code.
+The pairing flow should assume an attacker may observe, delay, replay, or modify network traffic. The attacker may also attempt to race a legitimate node using a stolen or copied join code.
 
-The future design should protect against:
+The design should protect against:
 
 - Passive code disclosure from network traffic.
 - MITM during first contact.
@@ -41,7 +41,21 @@ The future design should protect against:
 
 The design does not protect against compromise of a master node private key, compromise of local state, or user disclosure of a join code to an attacker. Those cases require revocation, rotation, and future operational controls.
 
-## Pairing Options
+## Current Implementation
+
+The implemented online pairing flow uses a dedicated TLS/TCP pairing listener and explicit master node ID pinning:
+
+- Master runs `infra pair listen --bind <host:port>`.
+- Master creates a single-use join code with `infra join-code create --role worker` or `--role master`.
+- Worker runs `infra pair join --endpoint <host:port> --code <code> --role <role> --master-node <master-node-id>`.
+- Worker verifies the master's runtime TLS certificate metadata against the pinned `master-node-id` before sending the join code.
+- The join code is sent only inside that verified TLS session.
+- Master validates and consumes the join code, rejects revoked joining node IDs, persists the joining peer, and returns the master's public peer metadata.
+- Worker persists network state, local identity, and the master's public peer metadata.
+
+The `master-node-id` is not secret, but it must be delivered to the worker through an authentic channel. This first implementation intentionally avoids storing plaintext join codes while keeping the protocol small and testable.
+
+## Future Pairing Options
 
 ### Option A: Verifier-Only Storage With PAKE/OPAQUE-Style Pairing
 
@@ -92,11 +106,11 @@ Cons:
 - Does not by itself solve verifier-only join-code proof.
 - UX must be designed carefully to avoid training users to ignore fingerprints.
 
-## Recommended Direction
+## Future Direction
 
-Use Option A as the preferred future pairing design: verifier-only storage with a reviewed PAKE/OPAQUE-style protocol. Keep Option C as a supporting UX requirement for displaying and verifying master identity fingerprints. Avoid Option B unless a future design can preserve the no-plaintext-persistence goal without storing recoverable join-code secret material.
+Use Option A as the preferred future hardening direction: verifier-only storage with a reviewed PAKE/OPAQUE-style protocol. Keep the current master node ID pinning behavior as supporting UX. Avoid Option B unless a future design can preserve the no-plaintext-persistence goal without storing recoverable join-code secret material.
 
-The first implementation milestone should still be small:
+Future PAKE work should be small:
 
 - Select and evaluate a reviewed Go PAKE/OPAQUE-style library or protocol package.
 - Prototype local in-memory handshake tests only.
@@ -106,7 +120,7 @@ The first implementation milestone should still be small:
 
 ## Transcript Binding Requirements
 
-The future pairing transcript must include:
+Pairing transcripts should include:
 
 - Protocol name and version.
 - Network ID.
@@ -123,7 +137,7 @@ Including these values prevents a valid proof from being replayed into a differe
 
 ## State Transition
 
-Future successful pairing should perform one atomic local transition on the master:
+Successful pairing should perform one local transition on the master:
 
 - Verify the join proof.
 - Confirm record is unused.
@@ -133,20 +147,20 @@ Future successful pairing should perform one atomic local transition on the mast
 - Mark the join code consumed.
 - Reject any later attempt with the same code.
 
-If peer persistence fails, the code should remain unused. If code consumption fails, the peer should not be considered admitted. The implementation should avoid split state.
+If peer persistence fails, the code should remain unused. If code consumption fails, the peer should not be considered admitted. Future hardening should improve cross-file atomicity between peer persistence and join-code consumption.
 
 ## Open Questions
 
 - Which reviewed Go PAKE/OPAQUE-style library should be used, if any?
-- What exact master fingerprint UX should CLI and TUI display?
+- Should the CLI/TUI also display a shorter formatted fingerprint in addition to `node_id`?
 - Should a future master sign join-code authorization records?
 - How should multi-master admission and revocation propagation work?
 - What recovery process is safe when a master is lost or compromised?
 - Should rejoining after revocation always require fresh identity, or should a future membership-epoch model support explicit re-admission?
 
-## Testing Requirements For Future Pairing
+## Testing Requirements
 
-Future tests should cover:
+Tests should cover:
 
 - Successful local handshake proof.
 - MITM transcript tampering rejection.

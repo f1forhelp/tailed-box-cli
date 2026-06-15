@@ -197,14 +197,15 @@ If any check fails, the listener must reject the session and log only non-secret
 
 Unknown peers must not be admitted through the normal session path.
 
-Future pairing should use a separate pairing path with stronger admission rules:
+Pairing uses a separate pairing path with stronger admission rules:
 
 - Require a single-use join-code proof.
+- Require the joining node to verify the expected master node identity before sending the join code.
 - Bind network ID, expected role, issuing master ID, joining node ID, and public keys into the pairing transcript.
-- Persist the peer record and consume the join code atomically.
+- Persist the peer record and consume the join code as one admission path; future hardening should improve cross-file atomicity.
 - Reject wrong-network, wrong-role, already-used, replayed, or tampered pairing attempts.
 
-The preferred future pairing direction is documented in `docs/PAIRING.md`.
+The current pairing model and future hardening direction are documented in `docs/PAIRING.md`.
 
 ## Reconnect Behavior
 
@@ -319,7 +320,7 @@ Integration tests should cover:
 
 - Two local processes or two isolated config roots.
 - Master listen and worker dial.
-- Pairing path once pairing is implemented.
+- Pairing path.
 - Reconnect after process restart.
 - Revoke then reconnect rejection.
 

@@ -14,6 +14,7 @@ Implemented local foundations for:
 - Restrictive local persistence layout.
 - Transport/session interfaces.
 - Runtime TLS identity binding for authenticated mesh peers.
+- Online join-code pairing over TLS/TCP with explicit master node ID pinning.
 - Minimal TLS/TCP CLI mesh ping for current real-server testing.
 - Package-level QUIC/TLS control transport ping over reliable streams.
 - Shared control/action layer used by CLI and TUI.
@@ -25,7 +26,7 @@ Implemented local foundations for:
 - Postgres, Redis, Valkey, Docker, service installation, deployments, logs, monitoring, backups, or secrets management.
 - Website/dashboard or MCP server.
 - Worker command execution or remote admin/root command execution.
-- Online pairing-backed production mesh transport.
+- Service-management mesh protocols.
 - NAT traversal.
 - Multi-master consensus or revocation quorum.
 - External VPN, kernel VPN, OS-managed VPN, or shell-out networking integrations.
@@ -49,7 +50,7 @@ infra --config-root ./local-state join-code create --role worker
 infra --config-root ./local-state peer list
 ```
 
-The TUI is intentionally small:
+The TUI exposes the available CLI actions and prompts for required values:
 
 ```sh
 infra-tui --config-root ./local-state
@@ -80,13 +81,13 @@ Business logic belongs in `packages/control/actions` and `packages/securemesh`, 
 
 This repository does not depend on external system VPN tooling. It does not shell out to VPN/networking commands and does not require kernel VPN features.
 
-See `docs/PAIRING.md` for the design-only next-milestone direction for a future online pairing handshake.
+See `docs/PAIRING.md` for the current online pairing model and future PAKE/OPAQUE direction.
 
 See `docs/REAL_SERVER_CONNECTION_PLAN.md` for the staged plan to reach real server-to-server secure connections.
 
 See `docs/TRANSPORT_THREAT_MODEL.md` for the first real transport threat model and requirements.
 
-See `docs/REAL_SERVER_TESTING.md` for the current two-server TLS/TCP CLI mesh ping test procedure.
+See `docs/REAL_SERVER_TESTING.md` for the current two-server online pairing and TLS/TCP mesh ping test procedure.
 
 The planned direction is a low-overhead encrypted mesh owned by this application:
 
@@ -99,7 +100,7 @@ The planned direction is a low-overhead encrypted mesh owned by this application
 - Session key rotation.
 - Peer allowlists and revocation checks before accepting sessions.
 
-The current CLI real-server flow still uses TLS/TCP. The QUIC transport exists at the package level and is not wired into CLI commands yet.
+The current CLI real-server flow uses TLS/TCP for pairing and ping. The QUIC transport exists at the package level and is not wired into CLI commands yet.
 
 ## Join Codes
 

@@ -23,7 +23,7 @@ func TestTUICallsControlLayerAndShowsEquivalentCLI(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	code := run(context.Background(), nil, strings.NewReader("1\n"), &stdout, &stderr)
+	code := run(context.Background(), nil, strings.NewReader("6\n"), &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("exit = %d stderr=%s", code, stderr.String())
 	}
@@ -33,5 +33,26 @@ func TestTUICallsControlLayerAndShowsEquivalentCLI(t *testing.T) {
 	output := stdout.String()
 	if !strings.Contains(output, "CLI: infra join-code create --role worker") || !strings.Contains(output, "equivalent CLI: infra join-code create --role worker") {
 		t.Fatalf("stdout missing equivalent CLI: %s", output)
+	}
+}
+
+func TestTUIShowsAllPrimaryActions(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := run(context.Background(), nil, strings.NewReader("q\n"), &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit = %d stderr=%s", code, stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		"CLI: infra network init",
+		"CLI: infra identity init --role master",
+		"CLI: infra peer export",
+		"CLI: infra mesh ping --endpoint <endpoint>",
+		"CLI: infra pair listen --bind 127.0.0.1:9444",
+		"CLI: infra pair join --endpoint <endpoint> --code <code> --role worker --master-node <node-id>",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout missing %q: %s", want, output)
+		}
 	}
 }

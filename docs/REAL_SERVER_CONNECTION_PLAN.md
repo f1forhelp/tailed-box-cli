@@ -1,6 +1,6 @@
 # Real Server Secure Connection Plan
 
-This plan describes how to move from the current local secure mesh foundation to actual real server-to-server secure connections. It is a plan only; it does not implement networking, remote command execution, service management, or secret transmission.
+This plan describes how to move from the secure mesh foundation to actual real server-to-server secure connections. Current networking primitives include TLS/TCP pairing, TLS/TCP ping, and package-level QUIC ping; service management and remote command execution remain out of scope.
 
 ## Target Outcome
 
@@ -71,10 +71,16 @@ Tradeoff:
 - Noise PSK is simpler but conflicts with verifier-only persistence unless secret material becomes recoverable or reintroduced.
 - Fingerprint verification helps but is not enough by itself.
 
-Safe default:
+Current implementation:
+
+- TLS/TCP pairing with explicit master node ID pinning.
+- Join code is sent only after the worker verifies the master's runtime TLS identity against the pinned node ID.
+- Master consumes a verifier-backed single-use join code and persists public peer metadata.
+
+Future hardening:
 
 - Evaluate a reviewed Go PAKE/OPAQUE-style implementation and use it for online pairing if it passes review.
-- Require master identity fingerprint display/verification as supporting UX.
+- Keep master identity fingerprint display/verification as supporting UX.
 
 ## Architecture
 
@@ -205,23 +211,23 @@ Purpose:
 
 Plan:
 
-- Use the direction in `docs/PAIRING.md`.
-- Evaluate a reviewed Go PAKE/OPAQUE-style library before implementation.
-- Implement a local network pairing endpoint over the QUIC control transport.
+- Use the current pinned-master direction in `docs/PAIRING.md`.
+- Implement a local network pairing endpoint over TLS/TCP first.
 - Bind network ID, expected role, issuing master ID, joining node ID, public keys, and transcript version.
-- Mark the join code consumed only after peer admission is persisted.
+- Persist peer metadata and consume the join code in one admission path; future hardening should improve cross-file atomicity.
 
 CLI commands to add:
 
 - `infra mesh listen --bind host:port`
 - `infra join-code create --role worker`
-- `infra mesh join --master host:port --code <code> --role worker`
+- `infra pair listen --bind host:port`
+- `infra pair join --endpoint host:port --code <code> --role worker --master-node <node-id>`
 - `infra peer list`
 - `infra peer revoke --node <node-id> --role worker`
 
 Security requirements:
 
-- Never send join code in plaintext over an unauthenticated channel.
+- Never send join code before verifying the expected master node ID.
 - Never persist plaintext join code.
 - Do not log join code or pairing transcript secrets.
 - Reject replayed pairing attempts.
@@ -231,7 +237,7 @@ Security requirements:
 Tests:
 
 - Successful master/worker network pairing.
-- MITM transcript tampering rejection.
+- Wrong master node ID rejection.
 - Wrong network rejection.
 - Wrong role rejection.
 - Already-used code rejection.
@@ -335,7 +341,7 @@ The first real server-to-server MVP is complete when:
 
 - A master can listen on a configured UDP address.
 - A worker can join the master over the network using a single-use join code.
-- Pairing is MITM-resistant under the selected reviewed protocol.
+- Pairing is MITM-resistant under the selected reviewed protocol and required master identity verification model.
 - Both nodes persist peer state and reconnect after restart without a join code.
 - Unknown peers are rejected.
 - Wrong-network peers are rejected.
@@ -352,7 +358,7 @@ The first real server-to-server MVP is complete when:
 - Postgres, Redis, Valkey, Docker, reverse proxy, app deployment, log streaming, monitoring, backups, or service managers.
 - Website/dashboard.
 - MCP server.
-- Secret management or secret transmission beyond handshake internals.
+- Secret management or application secret transmission beyond pairing/handshake internals.
 - Remote admin/root command execution.
 - External system VPN integration.
 - Kernel-level VPN dependency.

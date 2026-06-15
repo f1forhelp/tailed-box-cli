@@ -50,6 +50,10 @@ func (s Store) Create(request CreateRequest) (string, Record, error) {
 }
 
 func (s Store) ValidateAndConsume(request ConsumeRequest) (ConsumeResult, error) {
+	return s.ValidateAndConsumeWith(request, nil)
+}
+
+func (s Store) ValidateAndConsumeWith(request ConsumeRequest, beforeConsume func(Record) error) (ConsumeResult, error) {
 	if err := request.Validate(); err != nil {
 		return ConsumeResult{}, err
 	}
@@ -85,6 +89,11 @@ func (s Store) ValidateAndConsume(request ConsumeRequest) (ConsumeResult, error)
 		}
 		if record.ExpectedRole != request.ExpectedRole {
 			return ConsumeResult{}, ErrWrongRole
+		}
+		if beforeConsume != nil {
+			if err := beforeConsume(*record); err != nil {
+				return ConsumeResult{}, err
+			}
 		}
 
 		consumedAt := s.nowUTC()
