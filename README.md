@@ -80,6 +80,8 @@ This repository does not depend on external system VPN tooling. It does not shel
 
 See `docs/PAIRING.md` for the design-only next-milestone direction for a future online pairing handshake.
 
+See `docs/REAL_SERVER_CONNECTION_PLAN.md` for the staged plan to reach real server-to-server secure connections.
+
 The planned direction is a low-overhead encrypted mesh owned by this application:
 
 - Future UDP data plane.
