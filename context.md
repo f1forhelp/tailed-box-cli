@@ -10,7 +10,7 @@ Secure mesh foundation milestone. This milestone should establish local, restart
 
 ## Current Status
 
-Milestone 11 TLS identity binding is complete. A new `packages/securemesh/network/tlsidentity` package generates runtime TLS certificates from existing persistent Ed25519 node identity and verifies peer certificates against local peer and revocation state. This milestone still does not add QUIC transport, listener/dialer sockets, production secret transmission, service management, website, MCP, or consensus code.
+Milestone 11 TLS identity binding is complete, and a minimal standard-library TLS/TCP mesh ping service package has been added as the first real testable server-to-server connection path. `packages/securemesh/network/tlstcp` can listen and ping using runtime TLS certificates from existing node identity plus peer/revocation verification. This is not service management, remote command execution, website, MCP, or multi-master consensus.
 
 ## Completed Steps
 
@@ -28,8 +28,9 @@ Milestone 11 TLS identity binding is complete. A new `packages/securemesh/networ
 
 - Current milestone steps are complete.
 - Milestone 11 is complete.
-- The user explicitly wants a working connection service for real servers; proceed to implement a minimal testable real connection path next.
-- Recommended next implementation step: add a minimal TLS-based connection service and CLI commands for `mesh listen` and `mesh ping` using existing TLS identity verification. Prefer QUIC/TLS after dependency evaluation, but a standard-library TLS/TCP fallback can produce a real testable connection without adding external dependencies if QUIC dependency risk or setup blocks progress.
+- Minimal TLS/TCP connection package is implemented.
+- Next step: add CLI/control commands for public peer export/import and `mesh listen` / `mesh ping` so the connection can be tested on two real servers.
+- QUIC/TLS remains the preferred future reliable control transport after dependency evaluation; TLS/TCP is the dependency-free real-server test path.
 - Continue to avoid service management, remote command execution, website, MCP, and multi-master consensus until explicitly selected in a future milestone.
 
 ## Repository Structure
@@ -97,6 +98,9 @@ repo-root/
         tlsidentity/
           tlsidentity.go
           tlsidentity_test.go
+        tlstcp/
+          tlstcp.go
+          tlstcp_test.go
         types.go
         transport.go
       peer/
@@ -236,6 +240,8 @@ repo-root/
 - `README.md`: Updated to link `docs/TRANSPORT_THREAT_MODEL.md`.
 - `packages/securemesh/network/tlsidentity/tlsidentity.go`: Added for Milestone 11. It creates runtime self-signed TLS certificates from persistent Ed25519 identity keys, embeds public mesh metadata in a custom certificate extension, extracts and validates that metadata, and verifies peer certificates against peer store and revocation state.
 - `packages/securemesh/network/tlsidentity/tlsidentity_test.go`: Added for Milestone 11. It tests metadata round-trip, valid peer acceptance, unknown peer rejection, wrong-network rejection, wrong-role rejection, public-key mismatch rejection, revoked-peer rejection, TLS 1.3/ALPN config construction, and missing metadata rejection.
+- `packages/securemesh/network/tlstcp/tlstcp.go`: Added as a minimal real connection service package. It provides TLS/TCP listen and ping behavior using `tlsidentity`, length-prefixed bounded JSON control frames, local identity/network loading, peer allowlist checks, and revocation checks.
+- `packages/securemesh/network/tlstcp/tlstcp_test.go`: Added tests for successful TLS ping, unknown peer rejection, revoked peer rejection, endpoint default-port normalization, and oversized frame rejection.
 
 ## Important Design Decisions
 
@@ -281,6 +287,8 @@ repo-root/
 - Milestone 11 decision: TLS certificates are generated at runtime from the existing persistent Ed25519 identity key. No separate TLS private key is persisted.
 - Milestone 11 decision: mesh peer authentication does not use public Web PKI or system trust roots. Verification is custom and based on certificate metadata, derived node ID, local peer allowlist, expected network/role, public key match, and revocation state.
 - Milestone 11 decision: `tls.Config` uses TLS 1.3 and ALPN `tailed-box-mesh/1`. `InsecureSkipVerify` is set only because a replacement `VerifyPeerCertificate` callback performs mesh-specific verification instead of Web PKI verification.
+- Minimal connection service decision: add a standard-library TLS/TCP service first so the user can actually test secure server-to-server connectivity without waiting for QUIC dependency selection. This does not replace the future QUIC/TLS control transport plan.
+- Minimal connection service decision: use bounded length-prefixed JSON control frames for `ping`/`pong` only. This is for connectivity verification, not service-management traffic or secret transmission.
 
 ## Step 2 Architecture And Security Plan
 
@@ -589,6 +597,12 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Updated `docs/REAL_SERVER_CONNECTION_PLAN.md` to mark Milestone 11 complete.
 - After updating context and plan docs for Milestone 11, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
 - After recording Milestone 11 verification in `context.md`, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
+- Added `packages/securemesh/network/tlstcp` using `apply_patch`.
+- `gofmt -w` formatted TLS/TCP service files.
+- TLS/TCP service verification: `go test ./...` from `packages/securemesh` passed including `network/tlstcp`.
+- TLS/TCP service verification: `go test ./...` from root passed for root package and command packages.
+- TLS/TCP service verification: `go test ./...` from `packages/control` passed.
+- After updating `context.md` for TLS/TCP service, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
 - Inspected `git status --short`, `git diff`, and `git log --oneline -10` before committing Step 5.
 - `git add ... && git commit -m "feat: add crypto and persistence helpers"` created Step 5 commit `6579122`.
 - Added Step 6 files using `apply_patch`.
@@ -619,13 +633,14 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Real-server plan verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `docs/REAL_SERVER_CONNECTION_PLAN.md` and updating `context.md`/`README.md`.
 - Milestone 10 verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `docs/TRANSPORT_THREAT_MODEL.md` and updating `context.md`/`README.md`/`docs/REAL_SERVER_CONNECTION_PLAN.md`.
 - Milestone 11 verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `packages/securemesh/network/tlsidentity`.
+- TLS/TCP service verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `packages/securemesh/network/tlstcp`.
 
 ## Known Issues
 
 - Future pairing handshake needs a deliberate choice between verifier-only PAKE/OPAQUE-style pairing and another reviewed MITM-resistant bootstrap design.
 - `docs/PAIRING.md` now records the recommended direction, but no PAKE/OPAQUE library has been selected or evaluated yet.
 - `docs/REAL_SERVER_CONNECTION_PLAN.md` is plan-only. No QUIC/TLS transport, online pairing implementation, or real network listener/dialer has been implemented yet.
-- TLS identity binding is implemented, but no QUIC/TLS transport, online pairing implementation, or real network listener/dialer has been implemented yet.
+- TLS identity binding and a minimal TLS/TCP ping listener/dialer package are implemented, but CLI wiring, QUIC/TLS transport, online pairing implementation, and service-management protocols are not yet implemented.
 - Multi-module `go test ./...` coverage from the repository root may be insufficient by itself; continue running `go test ./...` in root, `packages/securemesh`, and `packages/control` until the workspace strategy changes.
 
 ## Open Questions
@@ -641,7 +656,7 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 
 ## Next Recommended Action
 
-Recommended next concrete step is a minimal real connection service: implement listener/dialer CLI commands that use TLS identity verification and can be tested across two servers. Keep service management and remote command execution out of scope.
+Recommended next concrete step is CLI/control wiring for the minimal real connection service: public peer export/import plus `mesh listen` and `mesh ping` commands.
 
 ## Resume Instructions
 
