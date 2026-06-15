@@ -10,13 +10,13 @@ Secure mesh foundation milestone. This milestone should establish local, restart
 
 ## Current Status
 
-Step 2 architecture and security planning is complete. No implementation files were created in Step 2. The approved direction is to implement only local foundations and interfaces in this milestone, while designing toward a future low-overhead encrypted mesh that uses reviewed cryptographic building blocks rather than custom crypto primitives.
+Step 3 file planning is complete. No source, workspace, module, CLI, TUI, or test files were created in Step 3. Only `context.md` was updated. The approved assumptions are: use `infra` and `infra-tui` as initial command names, use `tailed-box-cli` as the default config directory name, proceed with root `go.work` plus `packages/securemesh` and `packages/control`, design toward a future Noise-style UDP data plane with optional QUIC/TLS reliable control later, and require revoked nodes to rejoin with a new join code plus fresh node identity by default.
 
 ## Completed Steps
 
 - [x] Step 1: Repository inspection
 - [x] Step 2: Architecture and security plan
-- [ ] Step 3: File plan
+- [x] Step 3: File plan
 - [ ] Step 4: Foundation types
 - [ ] Step 5: Crypto and persistence
 - [ ] Step 6: Join-code and revocation logic
@@ -26,9 +26,10 @@ Step 2 architecture and security planning is complete. No implementation files w
 
 ## Pending Steps
 
-- Await user validation of Step 2 architecture and security plan.
-- After approval, proceed to Step 3: exact file plan.
-- In Step 3, list every file to create or modify, its package, key types/functions, and planned tests.
+- Await user validation of Step 3 file plan.
+- After approval, proceed to Step 4: implement foundation types only.
+- Step 4 should create the initial workspace/module scaffolding needed by foundation types and then implement only identity, role, network, peer, revocation, join-code metadata, and transport interface/type definitions.
+- Step 4 must not implement crypto helpers, persistence, join-code generation/validation, revocation store logic, CLI behavior, TUI behavior, tests, or documentation beyond package scaffolding required to compile types.
 
 ## Repository Structure
 
@@ -44,49 +45,93 @@ repo-root/
 
 No `go.work` file exists yet. No `cmd/` directory exists yet. No `packages/` directory exists yet. No Go source files exist yet.
 
-Recommended future structure, pending Step 3 approval:
+Planned milestone structure after implementation and documentation:
 
 ```text
 repo-root/
+  go.mod
   go.work
   context.md
+  context_test.go
+  README.md
+  SECURITY.md
   cmd/
     infra/
       main.go
+      main_test.go
     infra-tui/
       main.go
+      main_test.go
   packages/
     securemesh/
       go.mod
-      identity/
-      join/
-      config/
-      peer/
-      crypto/
-      revocation/
-      network/
       README.md
+      config/
+        paths.go
+        file.go
+        lock.go
+        config_test.go
+      crypto/
+        random.go
+        hash.go
+        encoding.go
+        crypto_test.go
+      identity/
+        types.go
+        generate.go
+        store.go
+        identity_test.go
+      join/
+        types.go
+        code.go
+        store.go
+        join_test.go
+      network/
+        types.go
+        transport.go
+        network_test.go
+      peer/
+        types.go
+        store.go
+        peer_test.go
+      revocation/
+        types.go
+        store.go
+        revocation_test.go
     control/
       go.mod
-      actions/
       README.md
+      actions/
+        result.go
+        options.go
+        identity.go
+        join.go
+        peer.go
+        revocation.go
+        actions_test.go
 ```
+
+`go.sum` is not planned because the milestone should use only the Go standard library unless a later approved step introduces an external dependency. If `go mod tidy` creates `go.sum`, it should be kept only if needed.
 
 ## Files Created or Modified
 
-- `context.md`: Created in Step 1 and updated in Step 2 with architecture, security model, technology evaluation, assumptions, and next steps. It intentionally contains no secrets, join codes, credentials, private keys, tokens, or sensitive derived material.
+- `context.md`: Created in Step 1, updated in Step 2 with architecture and security planning, and updated in Step 3 with the exact file plan. It intentionally contains no secrets, join codes, credentials, private keys, tokens, or sensitive derived material.
 
 ## Important Design Decisions
 
-- Preserve module path `github.com/f1forhelp/tailed-box-cli` from `go.mod`.
+- Preserve module path `github.com/f1forhelp/tailed-box-cli` from root `go.mod`.
 - Preserve Go version `1.25.1`; do not downgrade or change it unless explicitly requested.
 - Use the user-requested pause workflow: update `context.md` after each logical step, then wait for validation.
 - Keep business logic out of future CLI/TUI entrypoints and place it behind a shared control/action layer.
 - Implement local foundations before any production network transport.
 - Do not implement custom cryptographic primitives or custom crypto math.
 - Prefer reviewed primitives and protocols: Go standard library crypto for foundational pieces, and a reviewed Noise-style implementation or reviewed protocol design for the future transport.
-- Safe default for future transport direction: hybrid architecture with a minimal encrypted UDP data plane using a Noise-style authenticated handshake, plus optional QUIC/TLS 1.3 reliable control streams later if justified.
+- Long-term transport direction: hybrid architecture with a minimal encrypted UDP data plane using a Noise-style authenticated handshake, plus optional QUIC/TLS 1.3 reliable control streams later if justified.
 - Do not choose any design that requires external system VPN tooling, kernel VPN features, OS-managed VPN configuration, or shelling out to networking/VPN commands.
+- Use `infra` and `infra-tui` as initial binary names.
+- Use `tailed-box-cli` as the default application config directory name.
+- Use a multi-module workspace with root `go.work`, root `go.mod` for commands, `packages/securemesh/go.mod`, and `packages/control/go.mod`.
+- A revoked node must rejoin with a new join code and fresh node identity material by default.
 
 ## Step 2 Architecture And Security Plan
 
@@ -99,13 +144,13 @@ Direct CLI
 Thin TUI
 Future Web Dashboard
 Future MCP Server
-        ↓
+        v
 Shared Control / Action Layer
-        ↓
+        v
 Secure Mesh Foundation
-        ↓
+        v
 Future Secure Transport
-        ↓
+        v
 Future Service Managers
 ```
 
@@ -160,7 +205,7 @@ Safe default for this milestone: implement verifier-only local join-code foundat
 ### Local Persistence Model
 
 - Use an application config root based on `os.UserConfigDir()` by default, with an injectable root for tests.
-- Safe default app directory name: `tailed-box-cli`, while public command names can remain `infra` and `infra-tui` unless changed by user decision.
+- Use `tailed-box-cli` as the default application config directory name.
 - Create directories with restrictive permissions, preferably `0700` on Unix-like systems.
 - Store private identity files and local security state with restrictive permissions, preferably `0600` on Unix-like systems.
 - Use atomic write patterns: write to a temporary file in the same directory, set restrictive permissions, flush where practical, then rename.
@@ -220,12 +265,78 @@ Recommended direction: use the hybrid design as the long-term target, but implem
 - Do not add a Noise, QUIC, or TUI dependency until the specific implementation step requires it and the user approves the file plan.
 - Keep all state managers testable with injected filesystem roots and clocks.
 
+## Step 3 File Plan
+
+### Workspace And Root Files
+
+- `go.work`: Workspace file. Purpose: include root command module plus `packages/securemesh` and, once created, `packages/control`. Key content: `go 1.25.1`, `use .`, `use ./packages/securemesh`, and later `use ./packages/control`. Tests: none directly.
+- `go.mod`: Root module `github.com/f1forhelp/tailed-box-cli`. Purpose: keep command packages under the root module. Key changes: preserve `go 1.25.1`; in Step 7 add local `require`/`replace` for `github.com/f1forhelp/tailed-box-cli/packages/control` if the command packages need it to build outside workspace mode. Tests: root command tests compile against this module.
+- `context_test.go`: Root test package. Purpose: verify `context.md` exists and records the current milestone status. Key test: context file is present and mentions secure mesh foundation/current milestone. Tests added in Step 8.
+- `README.md`: Root documentation. Purpose: milestone overview, implemented/not implemented list, CLI/TUI usage, and future direction. Added in Step 9.
+- `SECURITY.md`: Root security documentation. Purpose: security model, join-code properties, revocation model, MITM prevention plan, transport plan, no external VPN dependency. Added in Step 9.
+
+### Securemesh Module Files
+
+- `packages/securemesh/go.mod`: Module `github.com/f1forhelp/tailed-box-cli/packages/securemesh`. Purpose: secure mesh foundation module. Key content: `go 1.25.1`; no external dependencies planned. Tests: all securemesh package tests compile under this module.
+- `packages/securemesh/identity/types.go`: Package `identity`. Purpose: foundation identity types. Key types/functions: `NodeID`, `NetworkID`, `Role`, role constants, `Role.Valid`, `ParseRole`, `PublicKeySet`, `PrivateKeySet`, `Identity`, `Network`, validation errors. Tests: role validation, network identity type validation, identity validation.
+- `packages/securemesh/identity/generate.go`: Package `identity`. Purpose: identity and network generation after crypto helpers exist. Key functions: `GenerateNetwork`, `GenerateIdentity`, `DeriveNodeID`. Tests: identity generation, network ID creation, stable node ID derivation, key algorithm metadata.
+- `packages/securemesh/identity/store.go`: Package `identity`. Purpose: restart-safe identity/network save/load after config persistence exists. Key functions: `SaveIdentity`, `LoadIdentity`, `SaveNetwork`, `LoadNetwork`. Tests: identity save/load, restart-safe persistence, private file permissions where possible.
+- `packages/securemesh/crypto/random.go`: Package `crypto`. Purpose: secure random helpers. Key functions: `RandomBytes`, `RandomBase32`, future join-code random secret generation helper. Tests: expected byte lengths, non-empty randomness, error behavior using injectable reader if added.
+- `packages/securemesh/crypto/hash.go`: Package `crypto`. Purpose: hash/verifier helpers. Key functions: `SHA256`, `HMACSHA256`, `ConstantTimeEqual`. Tests: constant-time helper behavior, verifier mismatch behavior.
+- `packages/securemesh/crypto/encoding.go`: Package `crypto`. Purpose: safe encoding helpers. Key functions: base32 no-padding encode/decode, base64url encode/decode if needed. Tests: round trip, invalid input rejection, expected join-code display length support.
+- `packages/securemesh/config/paths.go`: Package `config`. Purpose: config root and local state paths. Key types/functions: `Paths`, `DefaultRoot`, `NewPaths`, `Ensure`, `IdentityPath`, `NetworkPath`, `JoinCodesPath`, `PeersPath`, `RevocationsPath`, `LocksDir`. Tests: expected filenames, injectable temp root, directory permissions where possible.
+- `packages/securemesh/config/file.go`: Package `config`. Purpose: safe local reads/writes. Key functions: `AtomicWriteFile`, `ReadFile`, `SaveJSON`, `LoadJSON`. Tests: write/read round trip, restrictive file permissions where possible, no partial plaintext assumptions.
+- `packages/securemesh/config/lock.go`: Package `config`. Purpose: local atomic operation lock helper. Key type/functions: `DirLock`, `AcquireLock`, `Release`. Tests: prevents double acquire, releases cleanly, works in temp directory.
+- `packages/securemesh/join/types.go`: Package `join`. Purpose: join-code metadata types only in Step 4. Key types/functions: `CodeID`, `Record`, `Status`, `CreateRequest`, `ConsumeRequest`, `ConsumeResult`, validation methods. Tests: metadata validation, status behavior.
+- `packages/securemesh/join/code.go`: Package `join`. Purpose: join-code generation/verifier logic in Step 6. Key functions: `GenerateCode`, `NewRecord`, `VerifierForCode`. Tests: high entropy/expected length, no mandatory expiry, no plaintext stored in record.
+- `packages/securemesh/join/store.go`: Package `join`. Purpose: local join-code state and single-use consumption in Step 6. Key type/functions: `Store`, `Create`, `ValidateAndConsume`, `List`, consumed-state update under lock. Tests: invalid rejection, already-used rejection, wrong role/network rejection, single-use behavior, consumed atomically.
+- `packages/securemesh/peer/types.go`: Package `peer`. Purpose: peer metadata types. Key types/functions: `Status`, `Endpoint`, `Record`, `Record.Active`, role/public-key metadata. Tests: active versus revoked status behavior.
+- `packages/securemesh/peer/store.go`: Package `peer`. Purpose: local peer state after persistence exists. Key type/functions: `Store`, `Add`, `Get`, `List`, `MarkRevoked`, `ActivePeers`. Tests: revoked node not active in local model.
+- `packages/securemesh/revocation/types.go`: Package `revocation`. Purpose: revocation metadata types only in Step 4. Key types/functions: `Record`, `Reason`, validation methods. Tests: revocation record validation.
+- `packages/securemesh/revocation/store.go`: Package `revocation`. Purpose: local revocation state and checks in Step 6. Key type/functions: `Store`, `Revoke`, `IsRevoked`, `List`. Tests: record creation, revoked-node check, revoked metadata fields.
+- `packages/securemesh/network/types.go`: Package `network`. Purpose: future transport/session metadata types. Key types/functions: `Protocol`, `SessionID`, `SessionState`, `SessionMetadata`, `PacketType`, `MessageType`. Tests: type validation and constants compile.
+- `packages/securemesh/network/transport.go`: Package `network`. Purpose: future transport interfaces only. Key interfaces/types: `Transport`, `Session`, `DialOptions`, `ListenOptions`, `PeerAuthenticator`. Tests: compile-time fake implementation can satisfy interfaces.
+- `packages/securemesh/README.md`: Securemesh documentation. Purpose: package responsibilities, security boundaries, future transport notes. Added in Step 9.
+
+### Control Module Files
+
+- `packages/control/go.mod`: Module `github.com/f1forhelp/tailed-box-cli/packages/control`. Purpose: shared control/action layer module. Key content: `go 1.25.1`; local dependency on `github.com/f1forhelp/tailed-box-cli/packages/securemesh`. Tests: action tests compile under this module.
+- `packages/control/actions/result.go`: Package `actions`. Purpose: common action result model. Key types/functions: `Result`, `EquivalentCLI`, `Message`, `SecretValue` if needed for explicit display handling, `Command` helper. Tests: equivalent CLI strings returned by supported actions.
+- `packages/control/actions/options.go`: Package `actions`. Purpose: injected dependencies. Key types/functions: `Options`, `WithConfigRoot`, `WithClock`, internal `env` construction. Tests: temp config root use, deterministic clock behavior.
+- `packages/control/actions/identity.go`: Package `actions`. Purpose: shared identity/network actions. Key functions: `InitNetwork`, `InitIdentity`, `ShowIdentity`. Tests: actions call securemesh packages and return equivalent CLI command.
+- `packages/control/actions/join.go`: Package `actions`. Purpose: shared join-code actions. Key functions: `CreateJoinCode`, `ConsumeJoinCode`. Tests: create/consume call join package and return equivalent CLI command.
+- `packages/control/actions/peer.go`: Package `actions`. Purpose: shared peer listing/status action. Key functions: `ListPeers`. Tests: action reports active/revoked model without duplicating peer logic.
+- `packages/control/actions/revocation.go`: Package `actions`. Purpose: shared revocation action. Key functions: `RevokePeer`. Tests: action creates revocation and returns equivalent CLI command.
+- `packages/control/actions/actions_test.go`: Package `actions`. Purpose: control action tests. Key tests: equivalent CLI command strings, no business logic in CLI/TUI needed for tested behavior, actions use temp config root.
+- `packages/control/README.md`: Control documentation. Purpose: explain shared action layer for CLI/TUI/future Web/future MCP. Added in Step 9.
+
+### Command Files
+
+- `cmd/infra/main.go`: Package `main`. Purpose: thin CLI skeleton. Key functions: `main`, `run`, command parsing, usage output, role parsing adapter, calls into `packages/control/actions`. Supported local-only commands planned for Step 7: `network init`, `identity init --role master|worker`, `identity show`, `join-code create --role master|worker`, `join-code consume --code <code> --role master|worker`, `peer list`, `peer revoke --node <node-id> --role master|worker [--reason <reason>]`. Tests: CLI invokes control runner rather than duplicating business logic.
+- `cmd/infra/main_test.go`: Package `main`. Purpose: CLI skeleton tests. Key tests: parser maps a command to the expected control action, equivalent CLI output is surfaced, invalid arguments fail before action invocation.
+- `cmd/infra-tui/main.go`: Package `main`. Purpose: thin text-menu TUI skeleton using only standard library. Key functions: `main`, `run`, menu item definitions, action dispatch through control actions, equivalent CLI command display for each menu item. Tests: menu items carry equivalent CLI command and dispatch through injected control functions.
+- `cmd/infra-tui/main_test.go`: Package `main`. Purpose: TUI skeleton tests. Key tests: TUI calls control layer, displays equivalent CLI command for supported action, no duplicated business logic.
+
+### Test Execution Plan
+
+There is one important ambiguity from the approved multi-module layout: `go test ./...` from the repository root may not cover nested modules in all Go workspace/module modes. Safe default for Step 8 is to run the required root command and also run the same command inside each module:
+
+```text
+go test ./...
+go test ./...    # with workdir packages/securemesh
+go test ./...    # with workdir packages/control
+```
+
+After adding or changing imports/dependencies, run `go mod tidy` in the affected module directories. With the planned standard-library-only implementation, no external dependency downloads are expected.
+
 ## Assumptions
 
-- The app can use `infra` and `infra-tui` as initial binary names unless the user chooses different names.
-- The app config directory can default to `tailed-box-cli` under `os.UserConfigDir()` unless the user chooses a different product/config name.
+- The user approval after Step 2 validated use of `infra` and `infra-tui` as command names.
+- The user approval after Step 2 validated `tailed-box-cli` as the default config directory name.
+- The user approval after Step 2 validated the multi-module workspace layout using root `go.work`, `packages/securemesh`, and `packages/control`.
+- The user approval after Step 2 validated the hybrid future transport direction: Noise-style UDP data plane, optional QUIC/TLS reliable control later, no SSH/VPN-based mesh.
+- The user approval after Step 2 validated the safe default that revoked nodes must rejoin with fresh node identity material, not old node IDs.
 - One local config root represents one mesh network for this milestone.
-- Rejoining after revocation should use a new join code and fresh node identity by default; old revoked node IDs remain blocked.
 - Multi-master authorization, revocation quorum, consensus, and propagation are future design topics, not milestone-one features.
 - The first implementation should optimize correctness and security boundaries before hot-path performance.
 - Transport abstractions should be designed for future UDP/Noise but should not require transport dependencies yet.
@@ -239,6 +350,7 @@ Recommended direction: use the hybrid design as the long-term target, but implem
 - Private identity material must be persisted with restrictive permissions and never logged.
 - Revoked nodes must not be active peers and must not reconnect with old credentials.
 - Peer allowlists, network ID checks, role checks, and revocation checks are required before future sessions are accepted.
+- CLI output may need to display a newly generated join code exactly once to the authorized user. That value must not be written to persistent state, logs, docs, or `context.md`.
 - Do not claim the system is unhackable or non-hackable. Use accurate language such as cryptographically strong, high entropy, single-use, practically unguessable, designed to resist MITM, and low-overhead encrypted mesh.
 
 ## Commands Run
@@ -248,11 +360,13 @@ Recommended direction: use the hybrid design as the long-term target, but implem
 - Read `go.mod`.
 - `git status --short` returned no output before creating `context.md` in Step 1.
 - Read `context.md` at the start of Step 2.
-- `git status --short` in Step 2 showed `?? context.md`, expected because the context file was newly created and not committed.
+- `git status --short` in Step 2 showed `?? context.md`, expected because the context file was newly created and not committed at that point.
+- Read `context.md` at the start of Step 3.
+- `git status --short` at the start of Step 3 returned no output in this environment.
 
 ## Test Results
 
-- No tests were run in Step 1 or Step 2.
+- No tests were run in Step 1, Step 2, or Step 3.
 - No Go packages currently exist, so `go test ./...` would not yet exercise project code.
 
 ## Known Issues
@@ -263,14 +377,14 @@ Recommended direction: use the hybrid design as the long-term target, but implem
 - No tests exist yet.
 - No README or security documentation exists yet.
 - Future pairing handshake needs a deliberate choice between verifier-only PAKE/OPAQUE-style pairing and another reviewed MITM-resistant bootstrap design.
+- Multi-module `go test ./...` coverage from the repository root may be insufficient by itself; Step 8 should also run `go test ./...` in each module directory.
 
 ## Open Questions
 
-- Validate whether to proceed with the suggested multi-module layout using root `go.work`, `packages/securemesh`, and `packages/control`.
-- Validate whether the CLI binary name should remain `infra` or use another public command name.
-- Validate whether the default config directory name should be `tailed-box-cli`.
-- Validate the recommended future transport direction: Noise-style UDP data plane, optional QUIC/TLS reliable control later if needed, and no SSH/VPN-based mesh.
-- Validate the safe default that revoked nodes must rejoin with fresh node identity material, not old node IDs.
+- No blocking open questions for Step 4.
+- Future open question: choose the specific reviewed pairing protocol/handshake design for online pairing without plaintext join-code storage.
+- Future open question: choose the reviewed Noise implementation or protocol package for the production encrypted UDP transport.
+- Future open question: define multi-master revocation propagation, quorum, and master-removal safety.
 
 ## Hard Boundaries
 
@@ -278,7 +392,7 @@ Recommended direction: use the hybrid design as the long-term target, but implem
 
 ## Next Recommended Action
 
-Wait for user validation of Step 2. After approval, proceed to Step 3: exact file plan.
+Wait for user validation of Step 3. After approval, proceed to Step 4: implement foundation types only.
 
 ## Resume Instructions
 
