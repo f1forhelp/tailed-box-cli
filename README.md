@@ -82,6 +82,8 @@ See `docs/PAIRING.md` for the design-only next-milestone direction for a future 
 
 See `docs/REAL_SERVER_CONNECTION_PLAN.md` for the staged plan to reach real server-to-server secure connections.
 
+See `docs/TRANSPORT_THREAT_MODEL.md` for the first real transport threat model and requirements.
+
 The planned direction is a low-overhead encrypted mesh owned by this application:
 
 - Future UDP data plane.

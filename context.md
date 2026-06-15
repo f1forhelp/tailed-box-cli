@@ -10,7 +10,7 @@ Secure mesh foundation milestone. This milestone should establish local, restart
 
 ## Current Status
 
-Step 9 documentation is complete and committed. The current secure mesh foundation milestone is implemented, tested, documented, and committed. After the user asked whether this can be used for actual real server-to-server secure fast connections, a plan-only document was added at `docs/REAL_SERVER_CONNECTION_PLAN.md`. The plan chooses a safe production path: QUIC/TLS 1.3 as the first real reliable server-to-server control transport, with the long-term Noise/UDP data-plane goal preserved for later. No transport implementation, secret transmission, service management, website, MCP, or consensus code was added.
+Milestone 10 transport threat model and requirements are complete as a documentation-only step. `docs/TRANSPORT_THREAT_MODEL.md` defines the first real server-to-server transport requirements, threat model, v1 deployment assumptions, QUIC/TLS 1.3 control-transport choice, session acceptance rules, logging rules, failure behavior, dependency gate, and required tests. No transport implementation, dependency addition, secret transmission, service management, website, MCP, or consensus code was added.
 
 ## Completed Steps
 
@@ -27,9 +27,10 @@ Step 9 documentation is complete and committed. The current secure mesh foundati
 ## Pending Steps
 
 - Current milestone steps are complete.
-- Review `docs/REAL_SERVER_CONNECTION_PLAN.md`.
-- If approved, start Milestone 10 from that plan: transport requirements and threat model documentation.
-- Continue to avoid actual transport implementation, production secret transmission, service management, website, MCP, and multi-master consensus until explicitly selected in a future milestone.
+- Milestone 10 is complete.
+- Recommended next step is Milestone 11 from `docs/REAL_SERVER_CONNECTION_PLAN.md`: node certificate and TLS identity binding.
+- Milestone 11 should implement runtime TLS certificates from existing persistent identity and peer certificate verification against local peer identity material, without adding QUIC transport yet.
+- Continue to avoid production transport listener/dialer, production secret transmission, service management, website, MCP, and multi-master consensus until explicitly selected in a future milestone.
 
 ## Repository Structure
 
@@ -46,6 +47,7 @@ repo-root/
   docs/
     PAIRING.md
     REAL_SERVER_CONNECTION_PLAN.md
+    TRANSPORT_THREAT_MODEL.md
   go.mod
   go.work
   cmd/
@@ -226,6 +228,9 @@ repo-root/
 - `packages/control/README.md`: Added in Step 9 with shared action-layer purpose, boundaries, and package test command.
 - `docs/PAIRING.md`: Added on resume as a design-only next-milestone document for future online pairing. It recommends verifier-only PAKE/OPAQUE-style pairing as the preferred direction and records threat model, non-goals, transcript binding requirements, state transition requirements, open questions, and future tests.
 - `docs/REAL_SERVER_CONNECTION_PLAN.md`: Added after the user requested a plan for actual real server-to-server secure fast connections. It records ambiguities, tradeoffs, safe defaults, staged milestones, test requirements, and definition of done for the first real server MVP.
+- `docs/TRANSPORT_THREAT_MODEL.md`: Added for Milestone 10. It records the first real transport threat model, QUIC/TLS 1.3 control transport choice, reachable-endpoint v1 deployment shape, bind/port behavior, TLS identity model requirements, session acceptance rules, pairing path separation, reconnect behavior, revocation enforcement, logging rules, failure behavior, QUIC dependency gate, required implementation tests, performance requirements, and next Milestone 11.
+- `docs/REAL_SERVER_CONNECTION_PLAN.md`: Updated to mark Milestone 10 completed as `docs/TRANSPORT_THREAT_MODEL.md`.
+- `README.md`: Updated to link `docs/TRANSPORT_THREAT_MODEL.md`.
 
 ## Important Design Decisions
 
@@ -264,6 +269,10 @@ repo-root/
 - `docs/PAIRING.md` recommends verifier-only PAKE/OPAQUE-style pairing for the future online pairing milestone, with optional master identity fingerprint UX as supporting verification. It explicitly avoids implementing transport or storing plaintext join-code material.
 - Real-server plan decision: for the first actual real server-to-server secure connection, choose QUIC/TLS 1.3 as the first reliable control transport because it is mature, UDP-based, multiplexed, and reduces custom crypto/protocol risk. Keep Noise/UDP as a later optimized data-plane milestone.
 - Real-server plan safe defaults: assume reachable server endpoints for v1, no NAT traversal in the first real-server milestone, no service-management messages, and no remote command execution.
+- Milestone 10 decision: development listener default should be loopback `127.0.0.1:9443`; real server use should require explicit public/interface bind such as `0.0.0.0:9443`.
+- Milestone 10 decision: normal sessions must reject unknown, wrong-network, wrong-role, revoked, public-key-mismatched, invalid-certificate, and wrong-ALPN peers.
+- Milestone 10 decision: pairing sessions must be separate from normal already-paired sessions and must still use the future verifier-only pairing direction from `docs/PAIRING.md`.
+- Milestone 10 decision: QUIC dependency candidate is `github.com/quic-go/quic-go`, but dependency addition is deferred until a deliberate implementation milestone.
 
 ## Step 2 Architecture And Security Plan
 
@@ -554,6 +563,15 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Real-server plan verification: `go test ./...` from the repository root passed for root package, `cmd/infra`, and `cmd/infra-tui`.
 - Real-server plan verification: `go test ./...` from `packages/securemesh` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
 - Real-server plan verification: `go test ./...` from `packages/control` passed for `actions`.
+- User approved proceeding with Milestone 10.
+- Read `context.md`, checked `git status --short`, and checked `git log --oneline -5` before Milestone 10 work. Worktree was clean.
+- Added `docs/TRANSPORT_THREAT_MODEL.md`, updated `docs/REAL_SERVER_CONNECTION_PLAN.md`, and updated `README.md` using `apply_patch`.
+- Read the new transport threat model and related README/plan sections to catch formatting issues.
+- Fixed a Markdown spacing issue in the transport logging section.
+- Milestone 10 verification: `go test ./...` from the repository root passed for root package, `cmd/infra`, and `cmd/infra-tui`.
+- Milestone 10 verification: `go test ./...` from `packages/securemesh` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
+- Milestone 10 verification: `go test ./...` from `packages/control` passed for `actions`.
+- After updating `context.md` with Milestone 10 test results, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
 - Inspected `git status --short`, `git diff`, and `git log --oneline -10` before committing Step 5.
 - `git add ... && git commit -m "feat: add crypto and persistence helpers"` created Step 5 commit `6579122`.
 - Added Step 6 files using `apply_patch`.
@@ -582,12 +600,14 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Step 9 verification: `packages/securemesh` `go test ./...` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
 - Resume verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `docs/PAIRING.md` and updating `context.md`/`README.md`.
 - Real-server plan verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `docs/REAL_SERVER_CONNECTION_PLAN.md` and updating `context.md`/`README.md`.
+- Milestone 10 verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `docs/TRANSPORT_THREAT_MODEL.md` and updating `context.md`/`README.md`/`docs/REAL_SERVER_CONNECTION_PLAN.md`.
 
 ## Known Issues
 
 - Future pairing handshake needs a deliberate choice between verifier-only PAKE/OPAQUE-style pairing and another reviewed MITM-resistant bootstrap design.
 - `docs/PAIRING.md` now records the recommended direction, but no PAKE/OPAQUE library has been selected or evaluated yet.
 - `docs/REAL_SERVER_CONNECTION_PLAN.md` is plan-only. No QUIC/TLS transport, online pairing implementation, or real network listener/dialer has been implemented yet.
+- `docs/TRANSPORT_THREAT_MODEL.md` is requirements-only. No TLS identity binding, QUIC/TLS transport, online pairing implementation, or real network listener/dialer has been implemented yet.
 - Multi-module `go test ./...` coverage from the repository root may be insufficient by itself; continue running `go test ./...` in root, `packages/securemesh`, and `packages/control` until the workspace strategy changes.
 
 ## Open Questions
@@ -603,7 +623,7 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 
 ## Next Recommended Action
 
-Review `docs/REAL_SERVER_CONNECTION_PLAN.md`. Recommended next concrete step is Milestone 10: create the exact real transport requirements and threat model before adding dependencies or transport implementation.
+Recommended next concrete step is Milestone 11: implement node certificate and TLS identity binding without adding QUIC transport yet.
 
 ## Resume Instructions
 

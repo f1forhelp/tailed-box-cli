@@ -124,6 +124,10 @@ Commit:
 
 - `docs: define transport threat model`
 
+Status:
+
+- Completed as `docs/TRANSPORT_THREAT_MODEL.md`.
+
 ## Milestone 11: Node Certificate And TLS Identity Binding
 
 Purpose:
