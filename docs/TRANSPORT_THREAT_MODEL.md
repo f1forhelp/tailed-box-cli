@@ -295,7 +295,10 @@ Current likely candidate:
 
 - `github.com/quic-go/quic-go`
 
-This document does not approve adding the dependency by itself; the implementation milestone should add it deliberately with tests.
+Implementation note:
+
+- `github.com/quic-go/quic-go` v0.60.0 was selected for the package-level QUIC transport after checking MIT license, active maintenance/release recency, Go 1.25 module support, TLS verification hooks, localhost testability, documentation, fuzzing/coverage signals, and production usage.
+- The initial QUIC implementation uses reliable streams only. QUIC datagrams remain unused until a concrete need appears.
 
 ## Required Tests Before Real-Server Use
 

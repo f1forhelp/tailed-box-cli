@@ -1,6 +1,6 @@
 # tailed-box-cli
 
-CLI-first infrastructure management foundation for a future master/worker platform. The current milestone implements only the local secure mesh foundation; it does not manage services or execute remote commands.
+CLI-first infrastructure management foundation for a future master/worker platform. The current code implements secure mesh identity/membership foundations plus minimal authenticated mesh ping transports; it does not manage services or execute remote commands.
 
 ## Current Milestone
 
@@ -13,6 +13,9 @@ Implemented local foundations for:
 - Revocation metadata and local revoked-node checks.
 - Restrictive local persistence layout.
 - Future transport/session interfaces.
+- Runtime TLS identity binding for authenticated mesh peers.
+- Minimal TLS/TCP CLI mesh ping for current real-server testing.
+- Package-level QUIC/TLS control transport ping over reliable streams.
 - Shared control/action layer used by CLI and TUI.
 - Thin `infra` CLI skeleton.
 - Thin `infra-tui` text-menu skeleton.
@@ -23,7 +26,7 @@ Implemented local foundations for:
 - Postgres, Redis, Valkey, Docker, service installation, deployments, logs, monitoring, backups, or secrets management.
 - Website/dashboard or MCP server.
 - Worker command execution or remote admin/root command execution.
-- Full production encrypted mesh transport.
+- Online pairing-backed production mesh transport.
 - NAT traversal.
 - Multi-master consensus or revocation quorum.
 - External VPN, kernel VPN, OS-managed VPN, or shell-out networking integrations.
@@ -67,7 +70,7 @@ Shared Control / Action Layer
         v
 Secure Mesh Foundation
         v
-Future Secure Transport
+Authenticated Mesh Transport
         v
 Future Service Managers
 ```
@@ -84,20 +87,20 @@ See `docs/REAL_SERVER_CONNECTION_PLAN.md` for the staged plan to reach real serv
 
 See `docs/TRANSPORT_THREAT_MODEL.md` for the first real transport threat model and requirements.
 
-See `docs/REAL_SERVER_TESTING.md` for the current two-server TLS/TCP mesh ping test procedure.
+See `docs/REAL_SERVER_TESTING.md` for the current two-server TLS/TCP CLI mesh ping test procedure.
 
 The planned direction is a low-overhead encrypted mesh owned by this application:
 
-- Future UDP data plane.
-- Reviewed Noise-style authenticated handshake.
+- QUIC/TLS reliable control streams.
+- Future optimized UDP data plane if needed.
+- Reviewed Noise-style authenticated handshake for the future optimized data plane.
 - Persistent node identity plus ephemeral session keys.
 - Authenticated encryption for payloads.
 - Replay protection and key separation.
 - Session key rotation.
 - Peer allowlists and revocation checks before accepting sessions.
-- Optional QUIC/TLS reliable control streams later only if needed.
 
-This milestone intentionally implements only local identity, membership, pairing, revocation, persistence, and transport interfaces.
+The current CLI real-server flow still uses TLS/TCP. The QUIC transport exists at the package level and is not wired into CLI commands yet.
 
 ## Join Codes
 

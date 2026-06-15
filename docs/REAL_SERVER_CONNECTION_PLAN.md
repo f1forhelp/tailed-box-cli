@@ -218,6 +218,12 @@ Commit:
 
 - `feat: add quic control transport`
 
+Status:
+
+- Completed at the package level as `packages/securemesh/network/quictransport` using `github.com/quic-go/quic-go` v0.60.0.
+- It provides authenticated QUIC/TLS listen and ping over reliable streams with runtime mesh TLS certificates, peer allowlist checks, network checks, role checks, and revocation checks.
+- It is not wired into the CLI yet; the current real-server CLI procedure still uses TLS/TCP.
+
 ## Milestone 13: Online Pairing Prototype
 
 Purpose:

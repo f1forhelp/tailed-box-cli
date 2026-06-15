@@ -2,6 +2,8 @@
 
 This procedure tests the current minimal secure server-to-server connection path.
 
+The current CLI path uses TLS/TCP. A package-level QUIC transport also exists for tests, but it is not wired into CLI commands yet.
+
 Current transport:
 
 - Standard-library TLS over TCP.

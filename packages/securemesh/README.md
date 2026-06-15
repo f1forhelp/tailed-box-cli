@@ -1,6 +1,6 @@
 # securemesh
 
-Local secure mesh foundation module.
+Secure mesh foundation and transport primitives module.
 
 ## Packages
 
@@ -11,10 +11,13 @@ Local secure mesh foundation module.
 - `peer`: Peer metadata, active/revoked state, and local peer store.
 - `revocation`: Local revocation records, revocation creation, and revoked-node checks.
 - `network`: Future transport/session metadata and interfaces only.
+- `network/tlsidentity`: Runtime TLS certificates derived from persistent node identity and custom mesh peer verification.
+- `network/tlstcp`: Minimal TLS/TCP ping listener/dialer for current CLI real-server testing.
+- `network/quictransport`: Minimal QUIC/TLS ping listener/dialer over reliable streams.
 
 ## Boundaries
 
-This module does not implement a production encrypted mesh transport, online pairing handshake, NAT traversal, service management, remote command execution, or secret transmission.
+This module does not implement online pairing, NAT traversal, service management, remote command execution, or application secret transmission. The transport packages are limited connectivity/authentication primitives, not service-management protocols.
 
 Cryptographic helpers use reviewed Go standard-library primitives. The module does not implement custom crypto math.
 
