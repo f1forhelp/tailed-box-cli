@@ -2,7 +2,7 @@
 
 CLI-first infrastructure management foundation for a future master/worker platform. The current code implements secure mesh identity/membership foundations plus minimal authenticated mesh ping transports; it does not manage services or execute remote commands.
 
-## Current Milestone
+## Current Scope
 
 Implemented local foundations for:
 
@@ -12,14 +12,13 @@ Implemented local foundations for:
 - Peer metadata and active/revoked local model.
 - Revocation metadata and local revoked-node checks.
 - Restrictive local persistence layout.
-- Future transport/session interfaces.
+- Transport/session interfaces.
 - Runtime TLS identity binding for authenticated mesh peers.
 - Minimal TLS/TCP CLI mesh ping for current real-server testing.
 - Package-level QUIC/TLS control transport ping over reliable streams.
 - Shared control/action layer used by CLI and TUI.
 - Thin `infra` CLI skeleton.
 - Thin `infra-tui` text-menu skeleton.
-- Root `context.md` continuity tracking.
 
 ## Not Implemented Yet
 

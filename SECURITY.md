@@ -1,6 +1,6 @@
 # Security Model
 
-This project is designed for strong practical security, but it does not claim to be unhackable. The current code is a local secure mesh foundation, not a production network transport.
+This project is designed for strong practical security, but it does not claim to be unhackable. The current code provides secure mesh foundations and minimal authenticated connection primitives, not a production service-management mesh.
 
 ## Current Security Scope
 
@@ -19,10 +19,12 @@ Implemented now:
 - Single-use local join-code consumed state.
 - Local revocation records and revoked-node checks.
 - Peer active/revoked local model.
+- Runtime TLS identity binding for mesh peers.
+- Minimal authenticated TLS/TCP mesh ping for CLI testing.
+- Package-level authenticated QUIC/TLS mesh ping over reliable streams.
 
 Not implemented yet:
 
-- Production encrypted mesh transport.
 - Online pairing handshake.
 - Secret transmission.
 - Remote command execution.
@@ -64,11 +66,11 @@ Properties in this milestone:
 
 The generated plaintext join code may be displayed once to an authorized user. It must not be logged, committed, persisted as plaintext, or written to `context.md`.
 
-## MITM Prevention Plan
+## MITM Prevention
 
 Routine reconnects must use persistent node identity and peer membership state, not join codes.
 
-Future transport handshakes must:
+Transport and pairing handshakes must:
 
 - Authenticate long-term node identities.
 - Bind the transcript to network ID and role expectations.
@@ -77,7 +79,7 @@ Future transport handshakes must:
 - Avoid sending join codes in plaintext over unauthenticated channels.
 - Include replay protection, key separation, and key rotation.
 
-The future online pairing design is intentionally not implemented yet. A reviewed PAKE/OPAQUE-style pairing protocol or reviewed Noise-style flow with explicit master identity binding should be selected before network pairing is implemented.
+The online pairing design is intentionally not implemented yet. A reviewed PAKE/OPAQUE-style pairing protocol or reviewed Noise-style flow with explicit master identity binding should be selected before network pairing is implemented.
 
 ## Revocation Model
 
@@ -99,18 +101,16 @@ Future work must address propagation, quorum, split-brain handling, master-remov
 
 The intended secure mesh is application-owned. The project must not depend on external system VPN tools, kernel VPN features, OS-managed VPN configuration, or shelling out to VPN/networking commands.
 
-## Future Transport Direction
+## Transport Direction
 
-Preferred future design:
+Current and planned design:
 
-- Minimal UDP data plane.
-- Reviewed Noise-style authenticated handshake.
+- QUIC/TLS reliable control streams.
+- Future optimized UDP data plane if needed.
+- Reviewed Noise-style authenticated handshake for the future optimized data plane.
 - Long-term identity keys plus ephemeral session keys.
 - AEAD payload encryption.
 - Replay protection.
 - Key separation.
 - Session key rotation.
 - Peer allowlists.
-- Optional QUIC/TLS reliable control streams later if justified.
-
-The current milestone provides transport interfaces and metadata only.

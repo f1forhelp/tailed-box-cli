@@ -120,14 +120,6 @@ Tests:
 - Documentation consistency tests can remain lightweight.
 - Existing `go test ./...` must stay green.
 
-Commit:
-
-- `docs: define transport threat model`
-
-Status:
-
-- Completed as `docs/TRANSPORT_THREAT_MODEL.md`.
-
 ## Milestone 11: Node Certificate And TLS Identity Binding
 
 Purpose:
@@ -164,24 +156,15 @@ Tests:
 - Wrong role rejected.
 - Restart-safe identity produces stable authentication identity.
 
-Commit:
-
-- `feat: bind node identity to tls auth`
-
-Status:
-
-- Completed as `packages/securemesh/network/tlsidentity`.
-
 ## Milestone 12: QUIC Control Transport MVP
 
 Purpose:
 
 - Establish real encrypted server-to-server sessions over UDP using QUIC/TLS 1.3.
 
-Recommended dependency:
+Dependency:
 
-- Evaluate `github.com/quic-go/quic-go` before adding it.
-- Add it only after confirming license, maintenance, API stability, test support, and security posture.
+- `github.com/quic-go/quic-go v0.60.0`.
 
 Implementation areas:
 
@@ -213,16 +196,6 @@ Benchmarks:
 - Handshake latency on localhost.
 - Small message round-trip latency.
 - Allocation count for send/receive paths.
-
-Commit:
-
-- `feat: add quic control transport`
-
-Status:
-
-- Completed at the package level as `packages/securemesh/network/quictransport` using `github.com/quic-go/quic-go` v0.60.0.
-- It provides authenticated QUIC/TLS listen and ping over reliable streams with runtime mesh TLS certificates, peer allowlist checks, network checks, role checks, and revocation checks.
-- It is not wired into the CLI yet; the current real-server CLI procedure still uses TLS/TCP.
 
 ## Milestone 13: Online Pairing Prototype
 
@@ -265,10 +238,6 @@ Tests:
 - No plaintext join-code persistence.
 - Restart-safe reconnect after pairing.
 
-Commit:
-
-- `feat: prototype online pairing`
-
 ## Milestone 14: Revocation Enforcement In Live Sessions
 
 Purpose:
@@ -288,10 +257,6 @@ Tests:
 - Revoked node cannot be accepted.
 - Active session closes after local revoke.
 - Rejoining requires new join code and fresh identity by default.
-
-Commit:
-
-- `feat: enforce revocation in sessions`
 
 ## Milestone 15: Real Server Integration Harness
 
@@ -313,10 +278,6 @@ Tests:
 - Worker reconnects after restart without join code.
 - Master revokes worker.
 - Worker reconnect is rejected after revocation.
-
-Commit:
-
-- `test: add real transport integration coverage`
 
 ## Milestone 16: Hardening And Operational Readiness
 
@@ -344,10 +305,6 @@ Tests:
 - Permission tests.
 - Benchmark baselines.
 
-Commit:
-
-- `chore: harden transport operations`
-
 ## Milestone 17: Optimized Noise/UDP Data Plane
 
 Purpose:
@@ -371,10 +328,6 @@ Tests:
 - Key rotation.
 - Packet tampering rejection.
 - Benchmarks versus QUIC control path.
-
-Commit:
-
-- `feat: add noise udp data plane prototype`
 
 ## Definition Of Done For First Real Server MVP
 

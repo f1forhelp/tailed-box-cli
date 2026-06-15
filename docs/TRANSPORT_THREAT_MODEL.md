@@ -277,9 +277,9 @@ Requirements:
 - Context cancellation: close cleanly.
 - Temporary network failure: retry with backoff only when configured to maintain connection.
 
-## Dependency Gate For QUIC
+## QUIC Dependency Criteria
 
-Before adding a QUIC dependency, evaluate:
+QUIC dependency evaluation criteria:
 
 - License compatibility.
 - Maintenance activity.
@@ -291,14 +291,11 @@ Before adding a QUIC dependency, evaluate:
 - Cross-platform support.
 - Benchmarking support.
 
-Current likely candidate:
+Selected dependency:
 
-- `github.com/quic-go/quic-go`
+- `github.com/quic-go/quic-go v0.60.0`
 
-Implementation note:
-
-- `github.com/quic-go/quic-go` v0.60.0 was selected for the package-level QUIC transport after checking MIT license, active maintenance/release recency, Go 1.25 module support, TLS verification hooks, localhost testability, documentation, fuzzing/coverage signals, and production usage.
-- The initial QUIC implementation uses reliable streams only. QUIC datagrams remain unused until a concrete need appears.
+The initial QUIC implementation uses reliable streams only. QUIC datagrams remain unused until a concrete need appears.
 
 ## Required Tests Before Real-Server Use
 

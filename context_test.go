@@ -12,7 +12,7 @@ func TestContextExistsAndTracksMilestone(t *testing.T) {
 		t.Fatalf("read context.md: %v", err)
 	}
 	content := string(data)
-	for _, want := range []string{"# Project Context", "Secure mesh foundation milestone", "## Current Milestone", "## Completed Steps"} {
+	for _, want := range []string{"# Project Context", "## Goal", "## Boundaries", "## Current Status", "## Next Action"} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("context.md missing %q", want)
 		}
