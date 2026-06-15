@@ -10,7 +10,7 @@ Secure mesh foundation milestone. This milestone should establish local, restart
 
 ## Current Status
 
-Milestone 10 transport threat model and requirements are complete as a documentation-only step. `docs/TRANSPORT_THREAT_MODEL.md` defines the first real server-to-server transport requirements, threat model, v1 deployment assumptions, QUIC/TLS 1.3 control-transport choice, session acceptance rules, logging rules, failure behavior, dependency gate, and required tests. No transport implementation, dependency addition, secret transmission, service management, website, MCP, or consensus code was added.
+Milestone 11 TLS identity binding is complete. A new `packages/securemesh/network/tlsidentity` package generates runtime TLS certificates from existing persistent Ed25519 node identity and verifies peer certificates against local peer and revocation state. This milestone still does not add QUIC transport, listener/dialer sockets, production secret transmission, service management, website, MCP, or consensus code.
 
 ## Completed Steps
 
@@ -27,10 +27,10 @@ Milestone 10 transport threat model and requirements are complete as a documenta
 ## Pending Steps
 
 - Current milestone steps are complete.
-- Milestone 10 is complete.
-- Recommended next step is Milestone 11 from `docs/REAL_SERVER_CONNECTION_PLAN.md`: node certificate and TLS identity binding.
-- Milestone 11 should implement runtime TLS certificates from existing persistent identity and peer certificate verification against local peer identity material, without adding QUIC transport yet.
-- Continue to avoid production transport listener/dialer, production secret transmission, service management, website, MCP, and multi-master consensus until explicitly selected in a future milestone.
+- Milestone 11 is complete.
+- The user explicitly wants a working connection service for real servers; proceed to implement a minimal testable real connection path next.
+- Recommended next implementation step: add a minimal TLS-based connection service and CLI commands for `mesh listen` and `mesh ping` using existing TLS identity verification. Prefer QUIC/TLS after dependency evaluation, but a standard-library TLS/TCP fallback can produce a real testable connection without adding external dependencies if QUIC dependency risk or setup blocks progress.
+- Continue to avoid service management, remote command execution, website, MCP, and multi-master consensus until explicitly selected in a future milestone.
 
 ## Repository Structure
 
@@ -94,6 +94,9 @@ repo-root/
         types.go
       network/
         network_test.go
+        tlsidentity/
+          tlsidentity.go
+          tlsidentity_test.go
         types.go
         transport.go
       peer/
@@ -231,6 +234,8 @@ repo-root/
 - `docs/TRANSPORT_THREAT_MODEL.md`: Added for Milestone 10. It records the first real transport threat model, QUIC/TLS 1.3 control transport choice, reachable-endpoint v1 deployment shape, bind/port behavior, TLS identity model requirements, session acceptance rules, pairing path separation, reconnect behavior, revocation enforcement, logging rules, failure behavior, QUIC dependency gate, required implementation tests, performance requirements, and next Milestone 11.
 - `docs/REAL_SERVER_CONNECTION_PLAN.md`: Updated to mark Milestone 10 completed as `docs/TRANSPORT_THREAT_MODEL.md`.
 - `README.md`: Updated to link `docs/TRANSPORT_THREAT_MODEL.md`.
+- `packages/securemesh/network/tlsidentity/tlsidentity.go`: Added for Milestone 11. It creates runtime self-signed TLS certificates from persistent Ed25519 identity keys, embeds public mesh metadata in a custom certificate extension, extracts and validates that metadata, and verifies peer certificates against peer store and revocation state.
+- `packages/securemesh/network/tlsidentity/tlsidentity_test.go`: Added for Milestone 11. It tests metadata round-trip, valid peer acceptance, unknown peer rejection, wrong-network rejection, wrong-role rejection, public-key mismatch rejection, revoked-peer rejection, TLS 1.3/ALPN config construction, and missing metadata rejection.
 
 ## Important Design Decisions
 
@@ -273,6 +278,9 @@ repo-root/
 - Milestone 10 decision: normal sessions must reject unknown, wrong-network, wrong-role, revoked, public-key-mismatched, invalid-certificate, and wrong-ALPN peers.
 - Milestone 10 decision: pairing sessions must be separate from normal already-paired sessions and must still use the future verifier-only pairing direction from `docs/PAIRING.md`.
 - Milestone 10 decision: QUIC dependency candidate is `github.com/quic-go/quic-go`, but dependency addition is deferred until a deliberate implementation milestone.
+- Milestone 11 decision: TLS certificates are generated at runtime from the existing persistent Ed25519 identity key. No separate TLS private key is persisted.
+- Milestone 11 decision: mesh peer authentication does not use public Web PKI or system trust roots. Verification is custom and based on certificate metadata, derived node ID, local peer allowlist, expected network/role, public key match, and revocation state.
+- Milestone 11 decision: `tls.Config` uses TLS 1.3 and ALPN `tailed-box-mesh/1`. `InsecureSkipVerify` is set only because a replacement `VerifyPeerCertificate` callback performs mesh-specific verification instead of Web PKI verification.
 
 ## Step 2 Architecture And Security Plan
 
@@ -572,6 +580,15 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Milestone 10 verification: `go test ./...` from `packages/securemesh` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
 - Milestone 10 verification: `go test ./...` from `packages/control` passed for `actions`.
 - After updating `context.md` with Milestone 10 test results, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
+- User clarified they want a working real server connection service and not repeated planning prompts.
+- Added Milestone 11 TLS identity binding package and tests using `apply_patch`.
+- `gofmt -w` formatted TLS identity files.
+- Milestone 11 verification: `go test ./...` from `packages/securemesh` passed including the new `network/tlsidentity` package.
+- Milestone 11 verification: `go test ./...` from the repository root passed for root package, `cmd/infra`, and `cmd/infra-tui`.
+- Milestone 11 verification: `go test ./...` from `packages/control` passed for `actions`.
+- Updated `docs/REAL_SERVER_CONNECTION_PLAN.md` to mark Milestone 11 complete.
+- After updating context and plan docs for Milestone 11, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
+- After recording Milestone 11 verification in `context.md`, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
 - Inspected `git status --short`, `git diff`, and `git log --oneline -10` before committing Step 5.
 - `git add ... && git commit -m "feat: add crypto and persistence helpers"` created Step 5 commit `6579122`.
 - Added Step 6 files using `apply_patch`.
@@ -601,13 +618,14 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Resume verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `docs/PAIRING.md` and updating `context.md`/`README.md`.
 - Real-server plan verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `docs/REAL_SERVER_CONNECTION_PLAN.md` and updating `context.md`/`README.md`.
 - Milestone 10 verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `docs/TRANSPORT_THREAT_MODEL.md` and updating `context.md`/`README.md`/`docs/REAL_SERVER_CONNECTION_PLAN.md`.
+- Milestone 11 verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `packages/securemesh/network/tlsidentity`.
 
 ## Known Issues
 
 - Future pairing handshake needs a deliberate choice between verifier-only PAKE/OPAQUE-style pairing and another reviewed MITM-resistant bootstrap design.
 - `docs/PAIRING.md` now records the recommended direction, but no PAKE/OPAQUE library has been selected or evaluated yet.
 - `docs/REAL_SERVER_CONNECTION_PLAN.md` is plan-only. No QUIC/TLS transport, online pairing implementation, or real network listener/dialer has been implemented yet.
-- `docs/TRANSPORT_THREAT_MODEL.md` is requirements-only. No TLS identity binding, QUIC/TLS transport, online pairing implementation, or real network listener/dialer has been implemented yet.
+- TLS identity binding is implemented, but no QUIC/TLS transport, online pairing implementation, or real network listener/dialer has been implemented yet.
 - Multi-module `go test ./...` coverage from the repository root may be insufficient by itself; continue running `go test ./...` in root, `packages/securemesh`, and `packages/control` until the workspace strategy changes.
 
 ## Open Questions
@@ -623,7 +641,7 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 
 ## Next Recommended Action
 
-Recommended next concrete step is Milestone 11: implement node certificate and TLS identity binding without adding QUIC transport yet.
+Recommended next concrete step is a minimal real connection service: implement listener/dialer CLI commands that use TLS identity verification and can be tested across two servers. Keep service management and remote command execution out of scope.
 
 ## Resume Instructions
 

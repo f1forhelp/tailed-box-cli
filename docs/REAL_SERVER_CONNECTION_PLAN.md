@@ -168,6 +168,10 @@ Commit:
 
 - `feat: bind node identity to tls auth`
 
+Status:
+
+- Completed as `packages/securemesh/network/tlsidentity`.
+
 ## Milestone 12: QUIC Control Transport MVP
 
 Purpose:
