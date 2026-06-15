@@ -24,13 +24,25 @@ func main() {
 	os.Exit(run(context.Background(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }
 
+type actionSet struct {
+	createJoinCode func(context.Context, secureidentity.Role, ...actions.Option) (actions.Result, error)
+	listPeers      func(context.Context, ...actions.Option) (actions.Result, error)
+	showIdentity   func(context.Context, ...actions.Option) (actions.Result, error)
+}
+
+var tuiActions = actionSet{
+	createJoinCode: actions.CreateJoinCode,
+	listPeers:      actions.ListPeers,
+	showIdentity:   actions.ShowIdentity,
+}
+
 func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	configRoot, ok := parseFlags(args, stderr)
 	if !ok {
 		return 2
 	}
 	options := actionOptions(configRoot)
-	items := menuItems()
+	items := menuItems(tuiActions)
 
 	fmt.Fprintln(stdout, "Secure Mesh Foundation TUI")
 	for _, item := range items {
@@ -85,14 +97,14 @@ func actionOptions(configRoot string) []actions.Option {
 	return []actions.Option{actions.WithConfigRoot(configRoot)}
 }
 
-func menuItems() []menuItem {
+func menuItems(actionSet actionSet) []menuItem {
 	return []menuItem{
 		{
 			Key:           "1",
 			Label:         "Create worker join code",
 			EquivalentCLI: actions.Command("infra", "join-code", "create", "--role", "worker"),
 			Run: func(ctx context.Context, options []actions.Option) (actions.Result, error) {
-				return actions.CreateJoinCode(ctx, secureidentity.RoleWorker, options...)
+				return actionSet.createJoinCode(ctx, secureidentity.RoleWorker, options...)
 			},
 		},
 		{
@@ -100,7 +112,7 @@ func menuItems() []menuItem {
 			Label:         "List peers",
 			EquivalentCLI: actions.Command("infra", "peer", "list"),
 			Run: func(ctx context.Context, options []actions.Option) (actions.Result, error) {
-				return actions.ListPeers(ctx, options...)
+				return actionSet.listPeers(ctx, options...)
 			},
 		},
 		{
@@ -108,7 +120,7 @@ func menuItems() []menuItem {
 			Label:         "Show identity",
 			EquivalentCLI: actions.Command("infra", "identity", "show"),
 			Run: func(ctx context.Context, options []actions.Option) (actions.Result, error) {
-				return actions.ShowIdentity(ctx, options...)
+				return actionSet.showIdentity(ctx, options...)
 			},
 		},
 	}

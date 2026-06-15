@@ -16,6 +16,26 @@ func main() {
 	os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
 }
 
+type actionSet struct {
+	initNetwork     func(context.Context, ...actions.Option) (actions.Result, error)
+	initIdentity    func(context.Context, secureidentity.Role, ...actions.Option) (actions.Result, error)
+	showIdentity    func(context.Context, ...actions.Option) (actions.Result, error)
+	createJoinCode  func(context.Context, secureidentity.Role, ...actions.Option) (actions.Result, error)
+	consumeJoinCode func(context.Context, string, secureidentity.Role, ...actions.Option) (actions.Result, error)
+	listPeers       func(context.Context, ...actions.Option) (actions.Result, error)
+	revokePeer      func(context.Context, secureidentity.NodeID, secureidentity.Role, string, ...actions.Option) (actions.Result, error)
+}
+
+var cliActions = actionSet{
+	initNetwork:     actions.InitNetwork,
+	initIdentity:    actions.InitIdentity,
+	showIdentity:    actions.ShowIdentity,
+	createJoinCode:  actions.CreateJoinCode,
+	consumeJoinCode: actions.ConsumeJoinCode,
+	listPeers:       actions.ListPeers,
+	revokePeer:      actions.RevokePeer,
+}
+
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	configRoot, remaining, ok := parseGlobalFlags(args, stderr)
 	if !ok {
@@ -70,14 +90,14 @@ func dispatch(ctx context.Context, args []string, options []actions.Option, stde
 
 func dispatchNetwork(ctx context.Context, args []string, options []actions.Option, stderr io.Writer) (actions.Result, error) {
 	if len(args) == 1 && args[0] == "init" {
-		return actions.InitNetwork(ctx, options...)
+		return cliActions.initNetwork(ctx, options...)
 	}
 	return actions.Result{}, fmt.Errorf("usage: infra network init")
 }
 
 func dispatchIdentity(ctx context.Context, args []string, options []actions.Option, stderr io.Writer) (actions.Result, error) {
 	if len(args) == 1 && args[0] == "show" {
-		return actions.ShowIdentity(ctx, options...)
+		return cliActions.showIdentity(ctx, options...)
 	}
 	if len(args) == 0 || args[0] != "init" {
 		return actions.Result{}, fmt.Errorf("usage: infra identity init --role master|worker")
@@ -92,7 +112,7 @@ func dispatchIdentity(ctx context.Context, args []string, options []actions.Opti
 	if err != nil {
 		return actions.Result{}, err
 	}
-	return actions.InitIdentity(ctx, role, options...)
+	return cliActions.initIdentity(ctx, role, options...)
 }
 
 func dispatchJoinCode(ctx context.Context, args []string, options []actions.Option, stderr io.Writer) (actions.Result, error) {
@@ -111,7 +131,7 @@ func dispatchJoinCode(ctx context.Context, args []string, options []actions.Opti
 		if err != nil {
 			return actions.Result{}, err
 		}
-		return actions.CreateJoinCode(ctx, role, options...)
+		return cliActions.createJoinCode(ctx, role, options...)
 	case "consume":
 		flags := flag.NewFlagSet("join-code consume", flag.ContinueOnError)
 		flags.SetOutput(stderr)
@@ -124,7 +144,7 @@ func dispatchJoinCode(ctx context.Context, args []string, options []actions.Opti
 		if err != nil {
 			return actions.Result{}, err
 		}
-		return actions.ConsumeJoinCode(ctx, *code, role, options...)
+		return cliActions.consumeJoinCode(ctx, *code, role, options...)
 	default:
 		return actions.Result{}, fmt.Errorf("usage: infra join-code create|consume")
 	}
@@ -132,7 +152,7 @@ func dispatchJoinCode(ctx context.Context, args []string, options []actions.Opti
 
 func dispatchPeer(ctx context.Context, args []string, options []actions.Option, stderr io.Writer) (actions.Result, error) {
 	if len(args) == 1 && args[0] == "list" {
-		return actions.ListPeers(ctx, options...)
+		return cliActions.listPeers(ctx, options...)
 	}
 	if len(args) == 0 || args[0] != "revoke" {
 		return actions.Result{}, fmt.Errorf("usage: infra peer list|revoke")
@@ -149,7 +169,7 @@ func dispatchPeer(ctx context.Context, args []string, options []actions.Option, 
 	if err != nil {
 		return actions.Result{}, err
 	}
-	return actions.RevokePeer(ctx, secureidentity.NodeID(*nodeID), role, *reason, options...)
+	return cliActions.revokePeer(ctx, secureidentity.NodeID(*nodeID), role, *reason, options...)
 }
 
 func printResult(stdout io.Writer, result actions.Result) {
