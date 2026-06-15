@@ -10,7 +10,7 @@ Secure mesh foundation milestone. This milestone should establish local, restart
 
 ## Current Status
 
-Step 8 tests are complete. The repository now has tests for context continuity, identity and role validation, identity/network generation, restart-safe identity persistence, restrictive file permissions, crypto helpers, join-code generation/verification/single-use behavior, no plaintext join-code persistence, no mandatory join-code expiry, revocation records/checks, revoked peer inactivity, transport interfaces, control equivalent CLI commands, and CLI/TUI delegation to the shared control layer. Per the latest user instruction, continue without pausing for approval between todo steps, but still update `context.md` after every logical step and create a brief commit after each completed todo step.
+Step 9 documentation is complete. The current secure mesh foundation milestone is implemented, tested, documented, and committed through Step 8; Step 9 documentation has been added and verified. The repository now has local secure mesh foundation packages, shared control actions, thin CLI/TUI skeletons, tests, root security documentation, package documentation, and continuity tracking. Per the latest user instruction, each completed todo step has been committed with a brief commit.
 
 ## Completed Steps
 
@@ -22,14 +22,13 @@ Step 8 tests are complete. The repository now has tests for context continuity, 
 - [x] Step 6: Join-code and revocation logic
 - [x] Step 7: Thin control/CLI/TUI skeleton
 - [x] Step 8: Tests
-- [ ] Step 9: Documentation
+- [x] Step 9: Documentation
 
 ## Pending Steps
 
-- Proceed directly to Step 9: documentation.
-- Step 9 should add root README/security docs plus package README files for `packages/securemesh` and `packages/control`.
-- Step 9 documentation must cover current milestone, security model, implemented/not implemented scope, no external system VPN dependency, join-code security properties, revocation model, MITM prevention plan, low-overhead transport plan, and future work.
-- Step 9 must run the required test commands again, update `context.md`, and commit the completed step.
+- Current milestone steps are complete.
+- Review the committed milestone, then choose the next milestone explicitly before implementing additional features.
+- Suggested next milestone options: online pairing handshake design, production transport prototype, CLI ergonomics, or multi-master authorization/revocation design.
 
 ## Repository Structure
 
@@ -39,6 +38,8 @@ Current repository structure:
 repo-root/
   .git/
   AGENTS.md
+  README.md
+  SECURITY.md
   context.md
   context_test.go
   go.mod
@@ -52,6 +53,7 @@ repo-root/
       main_test.go
   packages/
     control/
+      README.md
       go.mod
       actions/
         identity.go
@@ -62,6 +64,7 @@ repo-root/
         revocation.go
         actions_test.go
     securemesh/
+      README.md
       go.mod
       config/
         config_test.go
@@ -212,6 +215,10 @@ repo-root/
 - `packages/control/actions/actions_test.go`: Added in Step 8 for control equivalent CLI command strings and master-only join-code authorization.
 - `cmd/infra/main_test.go`: Added in Step 8 to verify the CLI delegates through the shared control action seam and prints equivalent CLI output.
 - `cmd/infra-tui/main_test.go`: Added in Step 8 to verify the TUI delegates through the shared control action seam and displays equivalent CLI commands.
+- `README.md`: Added in Step 9 with milestone overview, implemented/not-implemented scope, CLI/TUI usage, architecture, join-code model, revocation model, transport direction, and continuity notes.
+- `SECURITY.md`: Added in Step 9 with current security scope, local state layout, join-code security properties, MITM prevention plan, revocation model, no external VPN dependency, and future transport direction.
+- `packages/securemesh/README.md`: Added in Step 9 with package responsibilities, boundaries, and package test command.
+- `packages/control/README.md`: Added in Step 9 with shared action-layer purpose, boundaries, and package test command.
 
 ## Important Design Decisions
 
@@ -244,6 +251,8 @@ repo-root/
 - Step 7 `join-code consume` equivalent CLI uses `--code <code>` rather than echoing a real secret value in the equivalent command string.
 - Step 8 added small package-level test seams in `cmd/infra` and `cmd/infra-tui` so tests can prove the thin interfaces call the shared control layer.
 - Step 8 tests intentionally avoid storing or printing generated join codes in `context.md`.
+- Step 9 documents the current milestone as a local foundation only and preserves hard boundaries against service management, remote command execution, production transport, external VPN tooling, website, MCP, and multi-master consensus.
+- Step 9 documentation uses accurate security language such as strong practical security, high entropy, single-use, and low-overhead encrypted mesh direction; it does not claim the system is unhackable.
 
 ## Step 2 Architecture And Security Plan
 
@@ -510,6 +519,15 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Final Step 8 `go test ./...` from `packages/securemesh` passed from cache for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
 - Final Step 8 `go test ./...` from `packages/control` passed from cache for `actions`.
 - After updating `context.md` for Step 8, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
+- Inspected `git status --short`, `git diff`, and `git log --oneline -10` before committing Step 8.
+- `git add ... && git commit -m "test: cover securemesh foundation"` created Step 8 commit `a21878f`.
+- Added Step 9 documentation using `apply_patch`.
+- Read the new README files to catch Markdown formatting issues.
+- Fixed missing package README test-command lines.
+- Step 9 `go test ./...` from the repository root passed for root package, `cmd/infra`, and `cmd/infra-tui`.
+- Step 9 `go test ./...` from `packages/securemesh` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
+- Step 9 `go test ./...` from `packages/control` passed for `actions`.
+- After updating `context.md` for Step 9, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
 - Inspected `git status --short`, `git diff`, and `git log --oneline -10` before committing Step 5.
 - `git add ... && git commit -m "feat: add crypto and persistence helpers"` created Step 5 commit `6579122`.
 - Added Step 6 files using `apply_patch`.
@@ -533,16 +551,18 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Step 8 verification: root `go test ./...` passed for root package, `cmd/infra`, and `cmd/infra-tui`.
 - Step 8 verification: `packages/control` `go test ./...` passed for `actions`.
 - Step 8 verification: `packages/securemesh` `go test ./...` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
+- Step 9 verification: root `go test ./...` passed for root package, `cmd/infra`, and `cmd/infra-tui`.
+- Step 9 verification: `packages/control` `go test ./...` passed for `actions`.
+- Step 9 verification: `packages/securemesh` `go test ./...` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
 
 ## Known Issues
 
-- No README or security documentation exists yet.
 - Future pairing handshake needs a deliberate choice between verifier-only PAKE/OPAQUE-style pairing and another reviewed MITM-resistant bootstrap design.
-- Multi-module `go test ./...` coverage from the repository root may be insufficient by itself; Step 8 should also run `go test ./...` in each module directory.
+- Multi-module `go test ./...` coverage from the repository root may be insufficient by itself; continue running `go test ./...` in root, `packages/securemesh`, and `packages/control` until the workspace strategy changes.
 
 ## Open Questions
 
-- No blocking open questions for Step 9.
+- No blocking open questions for the completed local foundation milestone.
 - Future open question: choose the specific reviewed pairing protocol/handshake design for online pairing without plaintext join-code storage.
 - Future open question: choose the reviewed Noise implementation or protocol package for the production encrypted UDP transport.
 - Future open question: define multi-master revocation propagation, quorum, and master-removal safety.
@@ -553,7 +573,7 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 
 ## Next Recommended Action
 
-Proceed to Step 9: add documentation, rerun required test commands, update `context.md`, and commit the completed step.
+Commit Step 9 documentation. After that, the current milestone is complete and ready for review.
 
 ## Resume Instructions
 
