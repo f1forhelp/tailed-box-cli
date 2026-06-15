@@ -78,6 +78,8 @@ Business logic belongs in `packages/control/actions` and `packages/securemesh`, 
 
 This repository does not depend on external system VPN tooling. It does not shell out to VPN/networking commands and does not require kernel VPN features.
 
+See `docs/PAIRING.md` for the design-only next-milestone direction for a future online pairing handshake.
+
 The planned direction is a low-overhead encrypted mesh owned by this application:
 
 - Future UDP data plane.

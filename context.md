@@ -10,7 +10,7 @@ Secure mesh foundation milestone. This milestone should establish local, restart
 
 ## Current Status
 
-Step 9 documentation is complete and committed. The current secure mesh foundation milestone is implemented, tested, documented, and committed. The repository now has local secure mesh foundation packages, shared control actions, thin CLI/TUI skeletons, tests, root security documentation, package documentation, and continuity tracking. Per the latest user instruction, each completed todo step has been committed with a brief commit.
+Step 9 documentation is complete and committed. The current secure mesh foundation milestone is implemented, tested, documented, and committed. On resume, the repository state was inspected and a design-only next-milestone document was added at `docs/PAIRING.md` to address the first recorded open question: future online pairing without plaintext join-code persistence. No transport implementation, secret transmission, service management, website, MCP, or consensus code was added.
 
 ## Completed Steps
 
@@ -27,8 +27,9 @@ Step 9 documentation is complete and committed. The current secure mesh foundati
 ## Pending Steps
 
 - Current milestone steps are complete.
-- Review the committed milestone, then choose the next milestone explicitly before implementing additional features.
-- Suggested next milestone options: online pairing handshake design, production transport prototype, CLI ergonomics, or multi-master authorization/revocation design.
+- Review `docs/PAIRING.md` and choose whether to proceed with the recommended verifier-only PAKE/OPAQUE-style pairing direction.
+- Before implementing pairing, select and evaluate a reviewed Go PAKE/OPAQUE-style library or decide to keep pairing design-only.
+- Continue to avoid production transport, secret transmission, service management, website, MCP, and multi-master consensus until explicitly selected as a future milestone.
 
 ## Repository Structure
 
@@ -42,6 +43,8 @@ repo-root/
   SECURITY.md
   context.md
   context_test.go
+  docs/
+    PAIRING.md
   go.mod
   go.work
   cmd/
@@ -100,7 +103,7 @@ repo-root/
         types.go
 ```
 
-No `cmd/` directory exists yet. No `packages/control` module exists yet. No tests, README, or security documentation exist yet.
+The old planned structure below is retained as historical planning context from Step 3. The current structure above is authoritative.
 
 Planned milestone structure after implementation and documentation:
 
@@ -216,9 +219,11 @@ repo-root/
 - `cmd/infra/main_test.go`: Added in Step 8 to verify the CLI delegates through the shared control action seam and prints equivalent CLI output.
 - `cmd/infra-tui/main_test.go`: Added in Step 8 to verify the TUI delegates through the shared control action seam and displays equivalent CLI commands.
 - `README.md`: Added in Step 9 with milestone overview, implemented/not-implemented scope, CLI/TUI usage, architecture, join-code model, revocation model, transport direction, and continuity notes.
+- `README.md`: Updated on resume to point to `docs/PAIRING.md` for the future online pairing design direction.
 - `SECURITY.md`: Added in Step 9 with current security scope, local state layout, join-code security properties, MITM prevention plan, revocation model, no external VPN dependency, and future transport direction.
 - `packages/securemesh/README.md`: Added in Step 9 with package responsibilities, boundaries, and package test command.
 - `packages/control/README.md`: Added in Step 9 with shared action-layer purpose, boundaries, and package test command.
+- `docs/PAIRING.md`: Added on resume as a design-only next-milestone document for future online pairing. It recommends verifier-only PAKE/OPAQUE-style pairing as the preferred direction and records threat model, non-goals, transcript binding requirements, state transition requirements, open questions, and future tests.
 
 ## Important Design Decisions
 
@@ -253,6 +258,8 @@ repo-root/
 - Step 8 tests intentionally avoid storing or printing generated join codes in `context.md`.
 - Step 9 documents the current milestone as a local foundation only and preserves hard boundaries against service management, remote command execution, production transport, external VPN tooling, website, MCP, and multi-master consensus.
 - Step 9 documentation uses accurate security language such as strong practical security, high entropy, single-use, and low-overhead encrypted mesh direction; it does not claim the system is unhackable.
+- Resume decision: because the foundation milestone was complete and no next implementation milestone was explicitly selected, the safe default was to add design-only documentation for the first recorded open question rather than implement new capabilities.
+- `docs/PAIRING.md` recommends verifier-only PAKE/OPAQUE-style pairing for the future online pairing milestone, with optional master identity fingerprint UX as supporting verification. It explicitly avoids implementing transport or storing plaintext join-code material.
 
 ## Step 2 Architecture And Security Plan
 
@@ -531,6 +538,13 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Inspected `git status --short`, `git diff`, and `git log --oneline -10` before committing Step 9.
 - `git add ... && git commit -m "docs: document securemesh foundation"` created Step 9 commit `3c7b9ce`.
 - After final context status correction, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
+- Resume command: read `context.md` before work.
+- Resume command: `git status --short` returned no output, indicating a clean worktree before adding the pairing design document.
+- Resume command: `git log --oneline -10` showed latest commits through `f824551 docs: finalize milestone context` before the resume documentation change.
+- Added `docs/PAIRING.md` and updated `README.md` using `apply_patch`.
+- Resume verification: `go test ./...` from the repository root passed for root package, `cmd/infra`, and `cmd/infra-tui`.
+- Resume verification: `go test ./...` from `packages/securemesh` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
+- Resume verification: `go test ./...` from `packages/control` passed for `actions`.
 - Inspected `git status --short`, `git diff`, and `git log --oneline -10` before committing Step 5.
 - `git add ... && git commit -m "feat: add crypto and persistence helpers"` created Step 5 commit `6579122`.
 - Added Step 6 files using `apply_patch`.
@@ -557,16 +571,18 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Step 9 verification: root `go test ./...` passed for root package, `cmd/infra`, and `cmd/infra-tui`.
 - Step 9 verification: `packages/control` `go test ./...` passed for `actions`.
 - Step 9 verification: `packages/securemesh` `go test ./...` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
+- Resume verification: root, `packages/securemesh`, and `packages/control` `go test ./...` all passed after adding `docs/PAIRING.md` and updating `context.md`/`README.md`.
 
 ## Known Issues
 
 - Future pairing handshake needs a deliberate choice between verifier-only PAKE/OPAQUE-style pairing and another reviewed MITM-resistant bootstrap design.
+- `docs/PAIRING.md` now records the recommended direction, but no PAKE/OPAQUE library has been selected or evaluated yet.
 - Multi-module `go test ./...` coverage from the repository root may be insufficient by itself; continue running `go test ./...` in root, `packages/securemesh`, and `packages/control` until the workspace strategy changes.
 
 ## Open Questions
 
 - No blocking open questions for the completed local foundation milestone.
-- Future open question: choose the specific reviewed pairing protocol/handshake design for online pairing without plaintext join-code storage.
+- Future open question: choose the specific reviewed Go PAKE/OPAQUE-style library or protocol package for online pairing without plaintext join-code storage.
 - Future open question: choose the reviewed Noise implementation or protocol package for the production encrypted UDP transport.
 - Future open question: define multi-master revocation propagation, quorum, and master-removal safety.
 
@@ -576,7 +592,7 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 
 ## Next Recommended Action
 
-Current milestone is complete and ready for review. Choose the next milestone before implementing additional capabilities.
+Review `docs/PAIRING.md`, then choose whether the next implementation milestone should be PAKE/OPAQUE-style online pairing evaluation/prototype, production transport design, CLI ergonomics, or multi-master authorization/revocation design.
 
 ## Resume Instructions
 
