@@ -18,22 +18,32 @@ func main() {
 
 type actionSet struct {
 	initNetwork     func(context.Context, ...actions.Option) (actions.Result, error)
+	importNetwork   func(context.Context, secureidentity.NetworkID, ...actions.Option) (actions.Result, error)
 	initIdentity    func(context.Context, secureidentity.Role, ...actions.Option) (actions.Result, error)
 	showIdentity    func(context.Context, ...actions.Option) (actions.Result, error)
 	createJoinCode  func(context.Context, secureidentity.Role, ...actions.Option) (actions.Result, error)
 	consumeJoinCode func(context.Context, string, secureidentity.Role, ...actions.Option) (actions.Result, error)
+	exportPeer      func(context.Context, ...actions.Option) (actions.Result, error)
+	addPeer         func(context.Context, actions.PeerExport, ...actions.Option) (actions.Result, error)
 	listPeers       func(context.Context, ...actions.Option) (actions.Result, error)
 	revokePeer      func(context.Context, secureidentity.NodeID, secureidentity.Role, string, ...actions.Option) (actions.Result, error)
+	prepareMesh     func(context.Context, string, ...actions.Option) (actions.MeshListener, error)
+	pingMesh        func(context.Context, string, ...actions.Option) (actions.Result, error)
 }
 
 var cliActions = actionSet{
 	initNetwork:     actions.InitNetwork,
+	importNetwork:   actions.ImportNetwork,
 	initIdentity:    actions.InitIdentity,
 	showIdentity:    actions.ShowIdentity,
 	createJoinCode:  actions.CreateJoinCode,
 	consumeJoinCode: actions.ConsumeJoinCode,
+	exportPeer:      actions.ExportPeer,
+	addPeer:         actions.AddPeer,
 	listPeers:       actions.ListPeers,
 	revokePeer:      actions.RevokePeer,
+	prepareMesh:     actions.PrepareMeshListener,
+	pingMesh:        actions.PingMesh,
 }
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
@@ -47,6 +57,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 
 	options := actionOptions(configRoot)
+	if len(remaining) >= 2 && remaining[0] == "mesh" && remaining[1] == "listen" {
+		return runMeshListen(ctx, remaining[2:], options, stdout, stderr)
+	}
 	result, err := dispatch(ctx, remaining, options, stderr)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
@@ -83,6 +96,8 @@ func dispatch(ctx context.Context, args []string, options []actions.Option, stde
 		return dispatchJoinCode(ctx, args[1:], options, stderr)
 	case "peer":
 		return dispatchPeer(ctx, args[1:], options, stderr)
+	case "mesh":
+		return dispatchMesh(ctx, args[1:], options, stderr)
 	default:
 		return actions.Result{}, fmt.Errorf("unknown command %q", args[0])
 	}
@@ -92,7 +107,16 @@ func dispatchNetwork(ctx context.Context, args []string, options []actions.Optio
 	if len(args) == 1 && args[0] == "init" {
 		return cliActions.initNetwork(ctx, options...)
 	}
-	return actions.Result{}, fmt.Errorf("usage: infra network init")
+	if len(args) > 0 && args[0] == "import" {
+		flags := flag.NewFlagSet("network import", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		networkID := flags.String("id", "", "network id")
+		if err := flags.Parse(args[1:]); err != nil {
+			return actions.Result{}, err
+		}
+		return cliActions.importNetwork(ctx, secureidentity.NetworkID(*networkID), options...)
+	}
+	return actions.Result{}, fmt.Errorf("usage: infra network init|import")
 }
 
 func dispatchIdentity(ctx context.Context, args []string, options []actions.Option, stderr io.Writer) (actions.Result, error) {
@@ -151,6 +175,29 @@ func dispatchJoinCode(ctx context.Context, args []string, options []actions.Opti
 }
 
 func dispatchPeer(ctx context.Context, args []string, options []actions.Option, stderr io.Writer) (actions.Result, error) {
+	if len(args) == 1 && args[0] == "export" {
+		return cliActions.exportPeer(ctx, options...)
+	}
+	if len(args) > 0 && args[0] == "add" {
+		flags := flag.NewFlagSet("peer add", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		filePath := flags.String("file", "", "peer export JSON file")
+		if err := flags.Parse(args[1:]); err != nil {
+			return actions.Result{}, err
+		}
+		if *filePath == "" {
+			return actions.Result{}, fmt.Errorf("peer add requires --file")
+		}
+		data, err := os.ReadFile(*filePath)
+		if err != nil {
+			return actions.Result{}, err
+		}
+		exported, err := actions.DecodePeerExport(data)
+		if err != nil {
+			return actions.Result{}, err
+		}
+		return cliActions.addPeer(ctx, exported, options...)
+	}
 	if len(args) == 1 && args[0] == "list" {
 		return cliActions.listPeers(ctx, options...)
 	}
@@ -172,7 +219,55 @@ func dispatchPeer(ctx context.Context, args []string, options []actions.Option, 
 	return cliActions.revokePeer(ctx, secureidentity.NodeID(*nodeID), role, *reason, options...)
 }
 
+func dispatchMesh(ctx context.Context, args []string, options []actions.Option, stderr io.Writer) (actions.Result, error) {
+	if len(args) == 0 {
+		return actions.Result{}, fmt.Errorf("usage: infra mesh listen|ping")
+	}
+	switch args[0] {
+	case "ping":
+		flags := flag.NewFlagSet("mesh ping", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		endpoint := flags.String("endpoint", "", "peer endpoint")
+		if err := flags.Parse(args[1:]); err != nil {
+			return actions.Result{}, err
+		}
+		return cliActions.pingMesh(ctx, *endpoint, options...)
+	case "listen":
+		return actions.Result{}, fmt.Errorf("mesh listen is handled by the listener runner")
+	default:
+		return actions.Result{}, fmt.Errorf("usage: infra mesh listen|ping")
+	}
+}
+
+func runMeshListen(ctx context.Context, args []string, options []actions.Option, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("mesh listen", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	bind := flags.String("bind", "", "listen address")
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	listener, err := cliActions.prepareMesh(ctx, *bind, options...)
+	if err != nil {
+		fmt.Fprintf(stderr, "error: %v\n", err)
+		return 1
+	}
+	defer listener.Close()
+	fmt.Fprintln(stdout, "mesh listener started")
+	fmt.Fprintf(stdout, "equivalent CLI: %s\n", listener.EquivalentCLI)
+	fmt.Fprintf(stdout, "bind: %s\n", listener.Bind)
+	fmt.Fprintf(stdout, "address: %s\n", listener.Addr)
+	if err := listener.Serve(ctx); err != nil {
+		fmt.Fprintf(stderr, "error: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
 func printResult(stdout io.Writer, result actions.Result) {
+	if result.RawOutput != "" {
+		fmt.Fprint(stdout, result.RawOutput)
+		return
+	}
 	if result.Message != "" {
 		fmt.Fprintln(stdout, result.Message)
 	}
@@ -210,5 +305,5 @@ func printResult(stdout io.Writer, result actions.Result) {
 
 func usage(stderr io.Writer) {
 	fmt.Fprintln(stderr, "usage: infra [--config-root path] <command>")
-	fmt.Fprintln(stderr, "commands: network init, identity init, identity show, join-code create, join-code consume, peer list, peer revoke")
+	fmt.Fprintln(stderr, "commands: network init, network import, identity init, identity show, join-code create, join-code consume, peer export, peer add, peer list, peer revoke, mesh listen, mesh ping")
 }

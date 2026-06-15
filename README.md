@@ -84,6 +84,8 @@ See `docs/REAL_SERVER_CONNECTION_PLAN.md` for the staged plan to reach real serv
 
 See `docs/TRANSPORT_THREAT_MODEL.md` for the first real transport threat model and requirements.
 
+See `docs/REAL_SERVER_TESTING.md` for the current two-server TLS/TCP mesh ping test procedure.
+
 The planned direction is a low-overhead encrypted mesh owned by this application:
 
 - Future UDP data plane.

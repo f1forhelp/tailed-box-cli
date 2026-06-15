@@ -8,6 +8,7 @@ import (
 type Result struct {
 	EquivalentCLI string
 	Message       string
+	RawOutput     string
 	Fields        map[string]string
 	Items         []map[string]string
 	SecretLabel   string

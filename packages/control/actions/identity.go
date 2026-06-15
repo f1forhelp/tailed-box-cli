@@ -30,6 +30,34 @@ func InitNetwork(ctx context.Context, options ...Option) (Result, error) {
 	}, nil
 }
 
+func ImportNetwork(ctx context.Context, networkID secureidentity.NetworkID, options ...Option) (Result, error) {
+	if err := checkContext(ctx); err != nil {
+		return Result{}, err
+	}
+	if err := networkID.Validate(); err != nil {
+		return Result{}, err
+	}
+	env, err := newEnv(options)
+	if err != nil {
+		return Result{}, err
+	}
+	network := secureidentity.Network{
+		Version:   secureidentity.NetworkVersion,
+		ID:        networkID,
+		CreatedAt: env.nowUTC(),
+	}
+	if err := secureidentity.SaveNetwork(env.paths, network); err != nil {
+		return Result{}, err
+	}
+	return Result{
+		EquivalentCLI: Command("infra", "network", "import", "--id", networkID.String()),
+		Message:       "network imported",
+		Fields: map[string]string{
+			"network_id": networkID.String(),
+		},
+	}, nil
+}
+
 func InitIdentity(ctx context.Context, role secureidentity.Role, options ...Option) (Result, error) {
 	if err := checkContext(ctx); err != nil {
 		return Result{}, err

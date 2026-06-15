@@ -31,6 +31,39 @@ func TestCLICallsControlLayer(t *testing.T) {
 	}
 }
 
+func TestCLIMeshListenUsesControlLayer(t *testing.T) {
+	original := cliActions
+	defer func() { cliActions = original }()
+	called := false
+	cliActions.prepareMesh = func(_ context.Context, bind string, _ ...actions.Option) (actions.MeshListener, error) {
+		called = true
+		if bind != "127.0.0.1:9443" {
+			t.Fatalf("bind = %q", bind)
+		}
+		return actions.MeshListener{
+			EquivalentCLI: "infra mesh listen --bind 127.0.0.1:9443",
+			Bind:          bind,
+			Addr:          bind,
+			Serve: func(context.Context) error {
+				return nil
+			},
+			Close: func() error { return nil },
+		}, nil
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := run(context.Background(), []string{"mesh", "listen", "--bind", "127.0.0.1:9443"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit = %d stderr=%s", code, stderr.String())
+	}
+	if !called {
+		t.Fatal("prepare mesh action was not called")
+	}
+	if !strings.Contains(stdout.String(), "mesh listener started") {
+		t.Fatalf("stdout = %s", stdout.String())
+	}
+}
+
 func TestCLIRejectsInvalidCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := run(context.Background(), []string{"unknown"}, &stdout, &stderr)
