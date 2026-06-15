@@ -10,7 +10,7 @@ Secure mesh foundation milestone. This milestone should establish local, restart
 
 ## Current Status
 
-Step 4 foundation types are complete and committed after Step 3. The repository now has a root `go.work`, a `packages/securemesh` module, and foundation type/interface files for identity, join-code metadata, peer metadata, revocation metadata, and future transport/session abstractions. Per the latest user instruction, continue without pausing for approval between todo steps, but still update `context.md` after every logical step and create a brief commit after each completed todo step.
+Step 5 crypto and persistence is complete. The repository now has standard-library crypto helpers, restrictive config path/file/lock helpers, and identity/network generation plus save/load. Per the latest user instruction, continue without pausing for approval between todo steps, but still update `context.md` after every logical step and create a brief commit after each completed todo step.
 
 ## Completed Steps
 
@@ -18,7 +18,7 @@ Step 4 foundation types are complete and committed after Step 3. The repository 
 - [x] Step 2: Architecture and security plan
 - [x] Step 3: File plan
 - [x] Step 4: Foundation types
-- [ ] Step 5: Crypto and persistence
+- [x] Step 5: Crypto and persistence
 - [ ] Step 6: Join-code and revocation logic
 - [ ] Step 7: Thin control/CLI/TUI skeleton
 - [ ] Step 8: Tests
@@ -26,9 +26,9 @@ Step 4 foundation types are complete and committed after Step 3. The repository 
 
 ## Pending Steps
 
-- Proceed directly to Step 5: implement crypto and persistence.
-- Step 5 should implement secure random helpers, hash/verifier helpers, constant-time comparison helpers, safe encoding helpers, config path helpers, safe JSON/file persistence, local lock helpers, and identity/network generation plus save/load.
-- Step 5 must not implement join-code validation/consumption logic, revocation store logic, CLI behavior, TUI behavior, full production transport, or documentation.
+- Proceed directly to Step 6: implement join-code and revocation logic.
+- Step 6 should implement join-code generation, verifier/hash creation, validation, single-use consumed state, local join-code store, local peer store behavior needed by revocation, revocation record creation, revocation store, and revocation checks.
+- Step 6 must not implement CLI behavior, TUI behavior, full production transport, online pairing transport, secret transmission, service management, tests, or documentation.
 
 ## Repository Structure
 
@@ -44,7 +44,17 @@ repo-root/
   packages/
     securemesh/
       go.mod
+      config/
+        file.go
+        lock.go
+        paths.go
+      crypto/
+        encoding.go
+        hash.go
+        random.go
       identity/
+        generate.go
+        store.go
         types.go
       join/
         types.go
@@ -138,6 +148,14 @@ repo-root/
 - `packages/securemesh/revocation/types.go`: Added in Step 4 with local revocation record metadata and validation.
 - `packages/securemesh/network/types.go`: Added in Step 4 with future transport/session metadata constants and validation.
 - `packages/securemesh/network/transport.go`: Added in Step 4 with future transport, session, endpoint, message, dial, listen, and peer-authenticator interfaces/types.
+- `packages/securemesh/crypto/random.go`: Added in Step 5 with cryptographically secure random byte/base32 helpers and injectable-reader support for future tests.
+- `packages/securemesh/crypto/hash.go`: Added in Step 5 with SHA-256, HMAC-SHA-256, and constant-time equality helpers.
+- `packages/securemesh/crypto/encoding.go`: Added in Step 5 with base32 no-padding, base64url, and join-code-friendly base32 normalization helpers.
+- `packages/securemesh/config/paths.go`: Added in Step 5 with default `tailed-box-cli` config root, local state file paths, lock paths, and restrictive directory creation.
+- `packages/securemesh/config/file.go`: Added in Step 5 with atomic file writes, JSON save/load, restrictive file permissions, and best-effort directory sync.
+- `packages/securemesh/config/lock.go`: Added in Step 5 with a low-dependency directory lock helper for local atomic operations.
+- `packages/securemesh/identity/generate.go`: Added in Step 5 with Ed25519 identity generation, X25519 transport key generation, stable public-key-derived node IDs, and random network IDs.
+- `packages/securemesh/identity/store.go`: Added in Step 5 with restart-safe identity/network save/load helpers using restrictive local persistence.
 
 ## Important Design Decisions
 
@@ -155,6 +173,10 @@ repo-root/
 - Use a multi-module workspace with root `go.work`, root `go.mod` for commands, `packages/securemesh/go.mod`, and `packages/control/go.mod`.
 - A revoked node must rejoin with a new join code and fresh node identity material by default.
 - Step 4 intentionally created only foundation types and interfaces; generation, persistence, join-code logic, stores, control, CLI/TUI, tests, and docs remain for later steps.
+- Step 5 uses only Go standard-library cryptography and persistence APIs. No external dependencies were added.
+- Step 5 stores private identity material only through restrictive local JSON persistence helpers; it does not log or write generated secrets to `context.md`.
+- Step 5 derives `NodeID` from Ed25519 and X25519 public key material with domain-separated SHA-256 and base32 encoding, not from hostnames, IPs, MACs, or mutable machine attributes.
+- Step 5 changed the identity struct field name from `PrivateKey` to `PrivateKeys` while preserving the `json:"private_keys"` field name; no compatibility migration is needed because no persisted release exists yet.
 
 ## Step 2 Architecture And Security Plan
 
@@ -393,18 +415,27 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - `go test ./...` from the repository root returned `no packages to test`, expected before command packages exist.
 - `go test ./...` from `packages/securemesh` passed for all foundation packages with no test files yet.
 - `go mod tidy` from `packages/securemesh` completed with no output.
+- Inspected `git status --short`, `git diff`, and `git log --oneline -10` before committing Step 4.
+- `git add ... && git commit -m "feat: add securemesh foundation types"` created Step 4 commit `6f2c520`.
+- Added Step 5 files using `apply_patch`.
+- `gofmt -w` formatted Step 5 Go source files.
+- `go test ./...` from the repository root returned `no packages to test`, expected before command packages exist.
+- `go test ./...` from `packages/securemesh` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`; no test files yet.
+- `go mod tidy` from `packages/securemesh` completed with no output.
 
 ## Test Results
 
 - No tests were run in Step 1, Step 2, or Step 3.
 - Step 4 verification: root `go test ./...` returned `no packages to test`.
 - Step 4 verification: `packages/securemesh` `go test ./...` passed for `identity`, `join`, `network`, `peer`, and `revocation`; no test files exist yet.
+- Step 5 verification: root `go test ./...` returned `no packages to test`.
+- Step 5 verification: `packages/securemesh` `go test ./...` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`; no test files exist yet.
 
 ## Known Issues
 
 - No CLI or TUI code exists yet.
 - `packages/control` does not exist yet.
-- Securemesh crypto, config, generation, persistence, stores, join-code logic, revocation logic, and tests do not exist yet.
+- Securemesh stores, join-code logic, revocation logic, and tests do not exist yet.
 - No tests exist yet.
 - No README or security documentation exists yet.
 - Future pairing handshake needs a deliberate choice between verifier-only PAKE/OPAQUE-style pairing and another reviewed MITM-resistant bootstrap design.
@@ -412,7 +443,7 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 
 ## Open Questions
 
-- No blocking open questions for Step 5.
+- No blocking open questions for Step 6.
 - Future open question: choose the specific reviewed pairing protocol/handshake design for online pairing without plaintext join-code storage.
 - Future open question: choose the reviewed Noise implementation or protocol package for the production encrypted UDP transport.
 - Future open question: define multi-master revocation propagation, quorum, and master-removal safety.
@@ -423,7 +454,7 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 
 ## Next Recommended Action
 
-Proceed to Step 5: implement crypto and persistence, then update `context.md` and commit the completed step.
+Proceed to Step 6: implement join-code and revocation logic, then update `context.md` and commit the completed step.
 
 ## Resume Instructions
 

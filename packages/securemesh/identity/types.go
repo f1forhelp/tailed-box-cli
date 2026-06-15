@@ -175,13 +175,13 @@ func (s PrivateKeySet) Validate() error {
 }
 
 type Identity struct {
-	Version    int           `json:"version"`
-	NodeID     NodeID        `json:"node_id"`
-	NetworkID  NetworkID     `json:"network_id"`
-	Role       Role          `json:"role"`
-	PublicKeys PublicKeySet  `json:"public_keys"`
-	PrivateKey PrivateKeySet `json:"private_keys"`
-	CreatedAt  time.Time     `json:"created_at"`
+	Version     int           `json:"version"`
+	NodeID      NodeID        `json:"node_id"`
+	NetworkID   NetworkID     `json:"network_id"`
+	Role        Role          `json:"role"`
+	PublicKeys  PublicKeySet  `json:"public_keys"`
+	PrivateKeys PrivateKeySet `json:"private_keys"`
+	CreatedAt   time.Time     `json:"created_at"`
 }
 
 func (i Identity) Validate() error {
@@ -200,7 +200,7 @@ func (i Identity) Validate() error {
 	if err := i.PublicKeys.Validate(); err != nil {
 		return err
 	}
-	if err := i.PrivateKey.Validate(); err != nil {
+	if err := i.PrivateKeys.Validate(); err != nil {
 		return err
 	}
 	if i.CreatedAt.IsZero() {
