@@ -10,14 +10,14 @@ Secure mesh foundation milestone. This milestone should establish local, restart
 
 ## Current Status
 
-Step 3 file planning is complete. No source, workspace, module, CLI, TUI, or test files were created in Step 3. Only `context.md` was updated. The approved assumptions are: use `infra` and `infra-tui` as initial command names, use `tailed-box-cli` as the default config directory name, proceed with root `go.work` plus `packages/securemesh` and `packages/control`, design toward a future Noise-style UDP data plane with optional QUIC/TLS reliable control later, and require revoked nodes to rejoin with a new join code plus fresh node identity by default.
+Step 4 foundation types are complete and committed after Step 3. The repository now has a root `go.work`, a `packages/securemesh` module, and foundation type/interface files for identity, join-code metadata, peer metadata, revocation metadata, and future transport/session abstractions. Per the latest user instruction, continue without pausing for approval between todo steps, but still update `context.md` after every logical step and create a brief commit after each completed todo step.
 
 ## Completed Steps
 
 - [x] Step 1: Repository inspection
 - [x] Step 2: Architecture and security plan
 - [x] Step 3: File plan
-- [ ] Step 4: Foundation types
+- [x] Step 4: Foundation types
 - [ ] Step 5: Crypto and persistence
 - [ ] Step 6: Join-code and revocation logic
 - [ ] Step 7: Thin control/CLI/TUI skeleton
@@ -26,10 +26,9 @@ Step 3 file planning is complete. No source, workspace, module, CLI, TUI, or tes
 
 ## Pending Steps
 
-- Await user validation of Step 3 file plan.
-- After approval, proceed to Step 4: implement foundation types only.
-- Step 4 should create the initial workspace/module scaffolding needed by foundation types and then implement only identity, role, network, peer, revocation, join-code metadata, and transport interface/type definitions.
-- Step 4 must not implement crypto helpers, persistence, join-code generation/validation, revocation store logic, CLI behavior, TUI behavior, tests, or documentation beyond package scaffolding required to compile types.
+- Proceed directly to Step 5: implement crypto and persistence.
+- Step 5 should implement secure random helpers, hash/verifier helpers, constant-time comparison helpers, safe encoding helpers, config path helpers, safe JSON/file persistence, local lock helpers, and identity/network generation plus save/load.
+- Step 5 must not implement join-code validation/consumption logic, revocation store logic, CLI behavior, TUI behavior, full production transport, or documentation.
 
 ## Repository Structure
 
@@ -41,9 +40,24 @@ repo-root/
   AGENTS.md
   context.md
   go.mod
+  go.work
+  packages/
+    securemesh/
+      go.mod
+      identity/
+        types.go
+      join/
+        types.go
+      network/
+        types.go
+        transport.go
+      peer/
+        types.go
+      revocation/
+        types.go
 ```
 
-No `go.work` file exists yet. No `cmd/` directory exists yet. No `packages/` directory exists yet. No Go source files exist yet.
+No `cmd/` directory exists yet. No `packages/control` module exists yet. No tests, README, or security documentation exist yet.
 
 Planned milestone structure after implementation and documentation:
 
@@ -115,13 +129,21 @@ repo-root/
 
 ## Files Created or Modified
 
-- `context.md`: Created in Step 1, updated in Step 2 with architecture and security planning, and updated in Step 3 with the exact file plan. It intentionally contains no secrets, join codes, credentials, private keys, tokens, or sensitive derived material.
+- `context.md`: Created in Step 1, updated in Step 2 with architecture and security planning, updated in Step 3 with the exact file plan, and updated in Step 4 with implementation status. It intentionally contains no secrets, join codes, credentials, private keys, tokens, or sensitive derived material.
+- `go.work`: Added in Step 4 to include the root module and `packages/securemesh` in the local workspace.
+- `packages/securemesh/go.mod`: Added in Step 4 as the securemesh foundation module with Go `1.25.1` and no external dependencies.
+- `packages/securemesh/identity/types.go`: Added in Step 4 with `NodeID`, `NetworkID`, `Role`, key metadata, identity, network, and validation types.
+- `packages/securemesh/join/types.go`: Added in Step 4 with join-code metadata types, verifier-backed record shape, status values, and request/result types. It does not persist plaintext join codes.
+- `packages/securemesh/peer/types.go`: Added in Step 4 with peer records, endpoint metadata, active/revoked status, and validation.
+- `packages/securemesh/revocation/types.go`: Added in Step 4 with local revocation record metadata and validation.
+- `packages/securemesh/network/types.go`: Added in Step 4 with future transport/session metadata constants and validation.
+- `packages/securemesh/network/transport.go`: Added in Step 4 with future transport, session, endpoint, message, dial, listen, and peer-authenticator interfaces/types.
 
 ## Important Design Decisions
 
 - Preserve module path `github.com/f1forhelp/tailed-box-cli` from root `go.mod`.
 - Preserve Go version `1.25.1`; do not downgrade or change it unless explicitly requested.
-- Use the user-requested pause workflow: update `context.md` after each logical step, then wait for validation.
+- Original workflow required pausing after each logical step. The latest user instruction supersedes that: continue without repeated approvals, still update `context.md` after each todo step, and commit after every completed todo step.
 - Keep business logic out of future CLI/TUI entrypoints and place it behind a shared control/action layer.
 - Implement local foundations before any production network transport.
 - Do not implement custom cryptographic primitives or custom crypto math.
@@ -132,6 +154,7 @@ repo-root/
 - Use `tailed-box-cli` as the default application config directory name.
 - Use a multi-module workspace with root `go.work`, root `go.mod` for commands, `packages/securemesh/go.mod`, and `packages/control/go.mod`.
 - A revoked node must rejoin with a new join code and fresh node identity material by default.
+- Step 4 intentionally created only foundation types and interfaces; generation, persistence, join-code logic, stores, control, CLI/TUI, tests, and docs remain for later steps.
 
 ## Step 2 Architecture And Security Plan
 
@@ -363,17 +386,25 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - `git status --short` in Step 2 showed `?? context.md`, expected because the context file was newly created and not committed at that point.
 - Read `context.md` at the start of Step 3.
 - `git status --short` at the start of Step 3 returned no output in this environment.
+- Inspected `git status --short`, `git diff -- context.md`, and `git log --oneline -10` before committing Step 3.
+- `git add context.md && git commit -m "docs: record file plan"` created Step 3 commit `36acba7`.
+- Added Step 4 files using `apply_patch`.
+- `gofmt -w` formatted Step 4 Go source files.
+- `go test ./...` from the repository root returned `no packages to test`, expected before command packages exist.
+- `go test ./...` from `packages/securemesh` passed for all foundation packages with no test files yet.
+- `go mod tidy` from `packages/securemesh` completed with no output.
 
 ## Test Results
 
 - No tests were run in Step 1, Step 2, or Step 3.
-- No Go packages currently exist, so `go test ./...` would not yet exercise project code.
+- Step 4 verification: root `go test ./...` returned `no packages to test`.
+- Step 4 verification: `packages/securemesh` `go test ./...` passed for `identity`, `join`, `network`, `peer`, and `revocation`; no test files exist yet.
 
 ## Known Issues
 
-- No source tree exists yet.
-- No workspace file exists yet.
 - No CLI or TUI code exists yet.
+- `packages/control` does not exist yet.
+- Securemesh crypto, config, generation, persistence, stores, join-code logic, revocation logic, and tests do not exist yet.
 - No tests exist yet.
 - No README or security documentation exists yet.
 - Future pairing handshake needs a deliberate choice between verifier-only PAKE/OPAQUE-style pairing and another reviewed MITM-resistant bootstrap design.
@@ -381,7 +412,7 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 
 ## Open Questions
 
-- No blocking open questions for Step 4.
+- No blocking open questions for Step 5.
 - Future open question: choose the specific reviewed pairing protocol/handshake design for online pairing without plaintext join-code storage.
 - Future open question: choose the reviewed Noise implementation or protocol package for the production encrypted UDP transport.
 - Future open question: define multi-master revocation propagation, quorum, and master-removal safety.
@@ -392,8 +423,8 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 
 ## Next Recommended Action
 
-Wait for user validation of Step 3. After approval, proceed to Step 4: implement foundation types only.
+Proceed to Step 5: implement crypto and persistence, then update `context.md` and commit the completed step.
 
 ## Resume Instructions
 
-Future sessions must first read `context.md`, then inspect the repository for changes made after this file was last updated. Continue only from the next pending step and preserve the pause-after-each-logical-step workflow.
+Future sessions must first read `context.md`, then inspect the repository for changes made after this file was last updated. Continue from the next pending step. Per the latest user instruction, do not pause for repeated approvals; update `context.md` after each todo step and create a brief commit after every completed todo step.
