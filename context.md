@@ -10,7 +10,7 @@ Secure mesh foundation milestone. This milestone should establish local, restart
 
 ## Current Status
 
-Step 9 documentation is complete. The current secure mesh foundation milestone is implemented, tested, documented, and committed through Step 8; Step 9 documentation has been added and verified. The repository now has local secure mesh foundation packages, shared control actions, thin CLI/TUI skeletons, tests, root security documentation, package documentation, and continuity tracking. Per the latest user instruction, each completed todo step has been committed with a brief commit.
+Step 9 documentation is complete and committed. The current secure mesh foundation milestone is implemented, tested, documented, and committed. The repository now has local secure mesh foundation packages, shared control actions, thin CLI/TUI skeletons, tests, root security documentation, package documentation, and continuity tracking. Per the latest user instruction, each completed todo step has been committed with a brief commit.
 
 ## Completed Steps
 
@@ -528,6 +528,9 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 - Step 9 `go test ./...` from `packages/securemesh` passed for `config`, `crypto`, `identity`, `join`, `network`, `peer`, and `revocation`.
 - Step 9 `go test ./...` from `packages/control` passed for `actions`.
 - After updating `context.md` for Step 9, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
+- Inspected `git status --short`, `git diff`, and `git log --oneline -10` before committing Step 9.
+- `git add ... && git commit -m "docs: document securemesh foundation"` created Step 9 commit `3c7b9ce`.
+- After final context status correction, reran `go test ./...` from root, `packages/securemesh`, and `packages/control`; all passed.
 - Inspected `git status --short`, `git diff`, and `git log --oneline -10` before committing Step 5.
 - `git add ... && git commit -m "feat: add crypto and persistence helpers"` created Step 5 commit `6579122`.
 - Added Step 6 files using `apply_patch`.
@@ -573,7 +576,7 @@ After adding or changing imports/dependencies, run `go mod tidy` in the affected
 
 ## Next Recommended Action
 
-Commit Step 9 documentation. After that, the current milestone is complete and ready for review.
+Current milestone is complete and ready for review. Choose the next milestone before implementing additional capabilities.
 
 ## Resume Instructions
 
